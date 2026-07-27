@@ -2,42 +2,61 @@
 
 ## Purpose
 
-The Infrastructure Object Model defines the core concepts used throughout the
-Infrastructure Automation Framework.
+The Infrastructure Object Model defines the platform-independent language used by
+the Infrastructure Automation Framework.
 
-These objects form the platform-independent language from which deployment
-artifacts are generated. They intentionally avoid implementation-specific
-details such as cloud providers, operating systems, or deployment technologies.
+The model describes **what** a distributed platform consists of rather than
+**how** it is deployed.
 
-The model should be expressive enough to describe multiple distributed systems,
-including telecom platforms, cloud-native applications and AI infrastructure.
+Infrastructure tooling such as Terraform, Ansible or Kubernetes consumes
+artifacts generated from this model but is not part of the model itself.
+
+The same modelling language should support multiple reference platforms,
+including telecommunications, cloud infrastructure, Kubernetes and AI
+platforms.
 
 ---
 
 # Design Principles
 
-The object model follows several principles:
+The object model follows these principles.
 
-- platform independent
-- provider agnostic
-- declarative
-- composable
-- validated before deployment
-- implementation independent
+- Provider independent
+- Declarative
+- Normalized
+- Reference based
+- Human readable
+- Generator friendly
+- Validated before deployment
 
-Infrastructure tooling (Terraform, Ansible, Kubernetes, etc.) consumes generated
-artifacts derived from this model and is not part of the model itself.
+Every object has a single owner.
+
+Relationships are expressed using references rather than duplicated
+information.
 
 ---
 
-# Core Objects
+# Model Domains
+
+The model is organised into four independent domains.
+
+```
+Platform
+│
+├── Network
+├── Compute
+└── Application
+```
+
+Each domain owns a specific part of the platform.
+
+---
+
+# Platform Domain
 
 ## Platform
 
 Represents a complete distributed platform.
-
-A platform consists of one or more deployment sites together with the
-applications, policies and operational components required to operate it.
 
 Examples:
 
@@ -46,157 +65,281 @@ Examples:
 - Observability Platform
 - Web Application Platform
 
+A Platform owns one or more Sites.
+
 ---
 
 ## Site
 
 Represents a deployment location.
 
-A site may correspond to:
-
-- physical datacenter
-- cloud region
-- availability zone
-- edge location
-
-A Site owns:
-
-- Zones
-- Nodes
-
----
-
-## Zone
-
-Represents a security or trust boundary.
-
 Examples:
 
-- Internet
-- DMZ
-- Application
-- Management
-- Storage
+- Physical datacentre
+- Cloud region
+- Availability zone
+- Edge location
 
-Zones contain one or more Networks.
+Sites group network devices and compute resources.
 
 ---
+
+# Network Domain
 
 ## Network
 
-Represents a Layer-3 network segment.
+Represents a logical network.
 
 Examples:
 
 - signalling
 - replication
 - media
-- management
+- core-oam
+- dmz-int
+- dmz-ext
 
-Networks contain Interfaces.
+Networks are referenced by device and node interfaces.
 
 ---
 
-## Role
+## Device Profile
 
-Represents a logical responsibility.
-
-A Role describes *what* a component does rather than *how* it is implemented.
+Defines a reusable description of a network device.
 
 Examples:
 
-- Application Server
-- API Gateway
-- Database
-- Monitoring
-- Identity Provider
+- MikroTik CHR Router
+- MikroTik CHR Switch
+- MikroTik CHR Firewall
 
-Roles define:
-
-- responsibilities
-- provided capabilities
-- required capabilities
+Device Profiles describe hardware or virtual appliance characteristics.
 
 ---
 
-## Node
+## Device
 
-Represents a concrete deployment of one or more Roles.
+Represents a concrete network device.
 
 Examples:
 
-- virtual machine
-- bare metal host
-- container
-- Kubernetes pod
+- Router
+- Switch
+- Firewall
+- Load Balancer
 
-Nodes own:
-
-- Interfaces
-- Services
-
----
-
-## Interface
-
-Represents a network attachment of a Node.
-
-Interfaces connect Nodes to Networks.
-
----
-
-## Connection
-
-Represents desired communication between Roles.
-
-Connections are independent of implementation.
-
-Generators translate Connections into:
-
-- firewall rules
-- Security Groups
-- ACLs
-- routing policies
+Devices own Interfaces.
 
 ---
 
 ## Policy
 
-Defines communication rules and security constraints.
+Represents platform-level networking or security policy.
 
-Policies express architectural intent rather than vendor-specific firewall
-configuration.
+Policy modelling is intentionally minimal in the current version and will evolve
+as generators are implemented.
 
 ---
 
-## Service
+# Compute Domain
 
-Represents deployed application functionality.
+## Compute Profile
 
-A Service implements one or more Roles.
+Defines reusable compute characteristics.
 
 Examples:
 
-- BroadWorks AS
-- PostgreSQL
-- FastAPI application
-- Prometheus
+- small
+- medium
+- large
+
+A Compute Profile specifies resources such as CPU and memory.
+
+---
+
+## Storage Profile
+
+Defines reusable storage layouts.
+
+Examples:
+
+- standard
+- database
+
+A Storage Profile specifies logical storage allocation.
+
+---
+
+## Node
+
+Represents a compute instance.
+
+Examples:
+
+- Virtual machine
+- Bare-metal server
+- Cloud instance
+- Kubernetes node
+
+Nodes reference:
+
+- Site
+- Compute Profile
+- Storage Profile
+- Deployment
+
+Nodes own Interfaces.
+
+---
+
+## Interface
+
+Represents a network attachment.
+
+Interfaces belong to Nodes or Devices.
+
+Each Interface references exactly one Network.
+
+---
+
+# Application Domain
+
+## Application
+
+Represents a reusable deployable software unit.
+
+Examples:
+
+- OCI
+- OCI-P
+- WebPortal
+- DeviceManagement
+- XSI-Actions
+
+Applications describe software independently of deployment.
+
+---
+
+## Deployment
+
+Represents a concrete software stack.
+
+A Deployment specifies:
+
+- Product metadata
+- Product version
+- Installed Applications
+- Application versions
+- Deployment-specific configuration
+
+Multiple Nodes may reference the same Deployment.
 
 ---
 
 # Object Relationships
 
+```
 Platform
-├── Sites
-│   ├── Zones
-│   │   └── Networks
-│   └── Nodes
-│       ├── Interfaces
-│       └── Services
+└── Sites
+
+Network
+├── Networks
+├── Device Profiles
+├── Devices
 └── Policies
 
-Roles describe Services.
+Compute
+├── Compute Profiles
+├── Storage Profiles
+└── Nodes
+    └── Interfaces
 
-Connections describe communication between Roles.
+Application
+├── Applications
+└── Deployments
+```
 
-Policies constrain Connections.
+Cross-domain relationships are expressed through references.
+
+Examples:
+
+```
+Node
+    ↓
+Deployment
+
+Node
+    ↓
+Compute Profile
+
+Node
+    ↓
+Storage Profile
+
+Interface
+    ↓
+Network
+
+Device
+    ↓
+Device Profile
+```
+
+---
+
+# Validation
+
+Validation is intentionally divided into multiple stages.
+
+## Structural Validation
+
+Performed using Yamale.
+
+Validates:
+
+- YAML structure
+- Required fields
+- Data types
+
+---
+
+## Reference Validation
+
+Performed by the framework.
+
+Validates that references resolve correctly.
+
+Examples:
+
+- Deployment exists
+- Compute Profile exists
+- Storage Profile exists
+- Network exists
+- Site exists
+
+---
+
+## Business Validation
+
+Performed by the framework.
+
+Business validation checks consistency between model objects.
+
+The current implementation intentionally keeps business validation minimal.
+Additional rules will be introduced only when required by the implementation.
+
+---
+
+# Future Evolution
+
+The object model is expected to evolve incrementally.
+
+New concepts should only be introduced when they:
+
+- eliminate duplication,
+- improve readability,
+- support validation,
+- support generators, or
+- simplify implementation.
+
+Avoid speculative abstractions.

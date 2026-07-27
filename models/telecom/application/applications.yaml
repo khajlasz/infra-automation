@@ -1,0 +1,38 @@
+
+applications:
+
+  OCI:
+    description: OCI service
+
+  OCI-P:
+    description: Provisioning OCI service
+
+  XSI-Actions:
+    description: XSI Actions
+
+  XSI-Events:
+    description: XSI Events
+
+  DeviceManagement:
+    description: Device Management
+
+  WebPortal:
+    description: Web Portal
+
+  Authentication:
+    description: Authentication Service
+
+  CallCenter:
+    description: Call Center Service
+
+  LicenseManagement:
+    description: License Management
+
+  AlarmManagement:
+    description: Alarm Management
+
+  PerformanceManagement:
+    description: Performance Management
+
+  SoftwareManagement:
+    description: Software Management

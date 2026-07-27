@@ -1,0 +1,6 @@
+storageProfiles: map(include('storage_profile'))
+---
+storage_profile:
+  root: int()
+  application: int()
+  logs: int()

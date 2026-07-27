@@ -1,0 +1,4 @@
+applications: map(include('application'))
+---
+application:
+  description: str()

@@ -1,0 +1,5 @@
+
+policies:
+
+  default:
+    description: Default telecom security policy

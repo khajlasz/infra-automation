@@ -1,0 +1,16 @@
+deployments: map(include('deployment'))
+---
+deployment:
+  product: include('product')
+  applications: list(include('deployment_application'))
+---
+product:
+  vendor: str()
+  family: str()
+  edition: str()
+  version: str()
+---
+deployment_application:
+  application: str()
+  version: str(required=False)
+  configuration: map(required=False)

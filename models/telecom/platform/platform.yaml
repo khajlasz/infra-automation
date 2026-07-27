@@ -1,0 +1,16 @@
+platform:
+
+  id: telecom
+
+  name: Telecom Reference Platform
+
+  version: 0.1
+
+  description: >
+    Declarative reference platform for infrastructure,
+    network and application automation.
+
+  sites:
+
+    - warsaw
+    - stockholm

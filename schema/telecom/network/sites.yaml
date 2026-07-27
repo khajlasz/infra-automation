@@ -1,0 +1,5 @@
+sites: map(include('site'))
+---
+site:
+  country: str()
+  role: str()

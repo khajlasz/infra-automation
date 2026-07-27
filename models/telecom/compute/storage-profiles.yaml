@@ -1,0 +1,7 @@
+
+storageProfiles:
+
+  standard:
+    root: 50
+    application: 100
+    logs: 50

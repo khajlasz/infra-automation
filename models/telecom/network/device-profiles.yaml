@@ -1,0 +1,17 @@
+
+deviceProfiles:
+
+  mikrotik-chr-router:
+    vendor: MikroTik
+    model: CHR
+    type: router
+
+  mikrotik-chr-switch:
+    vendor: MikroTik
+    model: CHR
+    type: switch
+
+  mikrotik-chr-firewall:
+    vendor: MikroTik
+    model: CHR
+    type: firewall

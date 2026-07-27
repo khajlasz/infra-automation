@@ -1,124 +1,157 @@
-# Infrastructure Automation
+# Infrastructure Automation Framework
 
-> Infrastructure automation using Python, Terraform and Ansible.
+A declarative framework for modelling distributed platforms and generating
+deployment artifacts.
 
-## Overview
+The framework separates **platform intent** from **implementation**, allowing
+the same platform model to generate Terraform, Ansible, documentation and other
+automation artifacts.
 
-Infrastructure teams often maintain the same information in multiple places:
-
-- Terraform variables
-- Ansible inventory
-- host variables
-- documentation
-- spreadsheets
-
-This project explores a different approach.
-
-Infrastructure is described once using a simple declarative model. Python validates the data and generates artifacts consumed by automation tools such as Terraform and Ansible.
-
-The objective is not to build another Terraform example, but to reduce duplication, improve consistency and automate repetitive work.
-
-The project is inspired by practical experience gained while automating provisioning and infrastructure workflows in large-scale telecommunications environments.
+The initial reference model is inspired by my experience automating Cisco BroadWorks deployments. Product-specific concepts are progressively generalized into reusable modelling patterns applicable to distributed platforms beyond telecommunications.
 
 ---
 
-## Goals
+## Motivation
 
-The project focuses on solving practical infrastructure automation problems:
+Infrastructure automation often evolves around deployment tools rather than the
+platform itself.
 
-- describe infrastructure only once
-- eliminate duplicated configuration
-- validate infrastructure data before deployment
-- generate automation artifacts
-- keep infrastructure consistent across multiple tools
-- provide a clean and maintainable codebase
+Terraform, Ansible and Kubernetes all require their own configuration models,
+which frequently duplicate the same information.
+
+This project takes the opposite approach.
+
+Instead of maintaining multiple infrastructure descriptions, the platform is
+described once in a provider-independent model.
+
+```
+              Platform Model
+                     │
+          Validation & Normalisation
+                     │
+      ┌──────────────┼──────────────┐
+      │              │              │
+ Terraform       Ansible      Documentation
+```
+
+The platform model becomes the **single source of truth**.
 
 ---
 
-## Current Technology Stack
+## Project Goals
 
-- Python
-- YAML
-- Terraform
-- Ansible
-- Git
-- GitHub
+- Build a provider-independent platform model.
+- Eliminate duplicated infrastructure definitions.
+- Generate deployment artifacts from a validated model.
+- Demonstrate Infrastructure Automation and Network Automation techniques.
+- Keep the logical platform independent from deployment technologies.
 
-Additional technologies may be introduced as the project evolves.
+---
+
+## Current Reference Platform
+
+The first platform implemented in the repository is a telecom reference
+architecture inspired by Cisco BroadWorks.
+
+It models:
+
+- multiple deployment sites
+- logical networks
+- network devices
+- compute nodes
+- software deployments
+- deployment policies
+
+BroadWorks is used only as a reference architecture.
+
+The modelling framework itself is product independent.
 
 ---
 
 ## Repository Structure
 
 ```
-.
-├── adr/            # Architecture Decision Records
-├── ansible/        # Ansible inventories and playbooks
-├── docs/           # Documentation
-├── examples/       # Example models
-├── model/          # Infrastructure model
-├── python/         # Validation and generators
-├── schemas/        # Validation schemas
-└── terraform/      # Terraform configuration
+docs/
+├── architecture.md
+├── model.md
+└── modelling-guidelines.md
+
+model/
+└── telecom/
+    ├── platform/
+    ├── network/
+    ├── compute/
+    └── application/
+
+terraform/
+```
+
+Future implementation will add:
+
+```
+src/
+├── loader/
+├── validator/
+├── generators/
+│   ├── terraform/
+│   ├── ansible/
+│   └── documentation/
+└── cli/
 ```
 
 ---
 
-## High-Level Workflow
+## Modelling Principles
 
-```
-Infrastructure Model (YAML)
-            │
-            ▼
-      Schema Validation
-            │
-            ▼
-     Python Processing
-            │
-     ┌──────┴──────┐
-     ▼             ▼
-Terraform      Ansible
-Artifacts      Inventory
-```
+The model follows several principles.
 
-The implementation should remain simple. The model exists to support automation, not to introduce unnecessary complexity.
+- Declarative
+- Provider independent
+- Normalised
+- Validated before deployment
+- Reference based (avoid duplicated information)
+- Human readable
+- Generator friendly
+
+Every object has a single owner.
+
+Relationships are expressed through references rather than duplicated values.
 
 ---
 
-## Engineering Principles
+## Current Status
 
-- Solve real problems.
-- Working software comes first.
-- Prefer simple solutions over clever ones.
-- Automate repetitive work.
-- Keep infrastructure data independent of implementation tools.
-- Treat documentation as part of the project.
-
----
-
-## Roadmap
-
-### Phase 1
-
-- repository structure
-- infrastructure model
-- schema validation
-- Terraform prototype
-
-### Phase 2
-
-- artifact generation
-- Ansible inventory generation
-- automated validation
-
-### Phase 3
-
-- CI/CD
-- automated testing
-- additional providers and integrations
+| Area | Status |
+|------|--------|
+| Platform Architecture | ✅ |
+| Infrastructure Object Model | ✅ |
+| Telecom Reference Model | 🚧 |
+| YAML Validation | Planned |
+| Python Loader | Planned |
+| Terraform Generator | Planned |
+| Ansible Generator | Planned |
+| Documentation Generator | Planned |
 
 ---
 
-## Status
+## Long-Term Vision
 
-The project is under active development.
+The telecom model is only the first consumer of the framework.
+
+Future platform models may include:
+
+- Cloud Infrastructure
+- Kubernetes Platforms
+- AI Infrastructure
+- Enterprise Applications
+
+without changing the underlying modelling framework.
+
+---
+
+## Project Status
+
+This project is under active development.
+
+The current focus is establishing a clean, extensible platform model before
+implementing generators and deployment tooling.

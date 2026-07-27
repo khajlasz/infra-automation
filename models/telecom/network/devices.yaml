@@ -1,0 +1,35 @@
+
+devices:
+
+  fw-waw:
+    site: warsaw
+    profile: mikrotik-chr-firewall
+    interfaces:
+      ether1:
+        network: replication
+      ether2:
+        network: core-oam
+      ether3:
+        network: dmz-int
+      ether4:
+        network: dmz-ext
+
+  core-sw-waw:
+    site: warsaw
+    profile: mikrotik-chr-switch
+    interfaces:
+      ether1:
+        network: signalling
+      ether2:
+        network: replication
+      ether3:
+        network: media
+
+  dmz-sw-waw:
+    site: warsaw
+    profile: mikrotik-chr-switch
+    interfaces:
+      ether1:
+        network: dmz-int
+      ether2:
+        network: dmz-ext

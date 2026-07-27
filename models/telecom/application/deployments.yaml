@@ -1,0 +1,94 @@
+
+deployments:
+
+  bw-as:
+    product:
+      vendor: Cisco
+      family: BroadWorks
+      edition: AS
+      version: R24
+    applications: []
+
+  bw-ns:
+    product:
+      vendor: Cisco
+      family: BroadWorks
+      edition: NS
+      version: R24
+    applications: []
+
+  bw-ms:
+    product:
+      vendor: Cisco
+      family: BroadWorks
+      edition: MS
+      version: R24
+    applications: []
+
+  bw-xsp:
+    product:
+      vendor: Cisco
+      family: BroadWorks
+      edition: XSP
+      version: R24
+    applications:
+      - application: OCI
+        version: R24.2
+      - application: XSI-Actions
+        version: R24.1
+      - application: XSI-Events
+        version: R24.3
+      - application: Authentication
+        version: R24.1
+
+  bw-adp-webex:
+    product:
+      vendor: Cisco
+      family: BroadWorks
+      edition: ADP
+      version: R24
+    applications:
+      - application: DeviceManagement
+        version: R24.2
+      - application: XSI-Actions
+        version: R24.1
+      - application: XSI-Events
+        version: R24.3
+
+  bw-adp-phone:
+    product:
+      vendor: Cisco
+      family: BroadWorks
+      edition: ADP
+      version: R24
+    applications:
+      - application: DeviceManagement
+        version: R24.1
+
+  bw-adp-provisioning:
+    product:
+      vendor: Cisco
+      family: BroadWorks
+      edition: ADP
+      version: R24
+    applications:
+      - application: WebPortal
+        version: R24.3
+        configuration:
+          contextPath: /
+      - application: OCI-P
+        version: R24.2
+        configuration:
+          contextPath: /ocip
+
+  bw-nfm:
+    product:
+      vendor: Cisco
+      family: BroadWorks
+      edition: NFM
+      version: R24
+    applications:
+      - application: LicenseManagement
+      - application: AlarmManagement
+      - application: PerformanceManagement
+      - application: SoftwareManagement

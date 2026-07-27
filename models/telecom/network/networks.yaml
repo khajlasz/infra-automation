@@ -1,0 +1,26 @@
+
+networks:
+
+  signalling:
+    description: SIP signalling network
+    zone: core
+
+  replication:
+    description: State replication
+    zone: core
+
+  media:
+    description: RTP media
+    zone: core
+
+  core-oam:
+    description: Operations, Administration and Management
+    zone: management
+
+  dmz-int:
+    description: Internal DMZ
+    zone: dmz
+
+  dmz-ext:
+    description: External DMZ
+    zone: dmz

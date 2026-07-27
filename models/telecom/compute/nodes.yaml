@@ -1,0 +1,80 @@
+
+nodes:
+
+  as01:
+    site: warsaw
+    computeProfile: medium
+    storageProfile: standard
+    deployment: bw-as
+
+    interfaces:
+      eth0:
+        network: signalling
+      eth1:
+        network: replication
+      eth2:
+        network: core-oam
+
+  ns01:
+    site: warsaw
+    computeProfile: medium
+    storageProfile: standard
+    deployment: bw-ns
+
+    interfaces:
+      eth0:
+        network: signalling
+      eth1:
+        network: replication
+      eth2:
+        network: core-oam
+
+  ms01:
+    site: warsaw
+    computeProfile: medium
+    storageProfile: standard
+    deployment: bw-ms
+
+    interfaces:
+      eth0:
+        network: signalling
+      eth1:
+        network: replication
+      eth2:
+        network: media
+      eth3:
+        network: core-oam
+
+  xsp01:
+    site: warsaw
+    computeProfile: medium
+    storageProfile: standard
+    deployment: bw-xsp
+
+    interfaces:
+      eth0:
+        network: dmz-int
+      eth1:
+        network: core-oam
+
+  adp01:
+    site: warsaw
+    computeProfile: medium
+    storageProfile: standard
+    deployment: bw-adp-webex
+
+    interfaces:
+      eth0:
+        network: dmz-int
+      eth1:
+        network: core-oam
+
+  nfm01:
+    site: warsaw
+    computeProfile: medium
+    storageProfile: standard
+    deployment: bw-nfm
+
+    interfaces:
+      eth0:
+        network: core-oam

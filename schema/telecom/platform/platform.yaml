@@ -1,0 +1,8 @@
+platform: include('platform_definition')
+---
+platform_definition:
+  id: str()
+  name: str()
+  version: num()
+  description: str()
+  sites: list(str())

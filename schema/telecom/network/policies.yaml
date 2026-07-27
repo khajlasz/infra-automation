@@ -1,0 +1,4 @@
+policies: map(include('policy'))
+---
+policy:
+  description: str()

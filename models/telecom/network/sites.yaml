@@ -1,0 +1,10 @@
+
+sites:
+
+  warsaw:
+    country: PL
+    role: primary
+
+  stockholm:
+    country: SE
+    role: secondary
