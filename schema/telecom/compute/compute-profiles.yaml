@@ -1,5 +1,5 @@
-computeProfiles: map(include('compute_profile'))
+compute_profiles: map(include('compute_profile'))
 ---
 compute_profile:
-  cpu: int()
-  ram: int()
+  cpu: int(min=1)
+  ram: int(min=1024)

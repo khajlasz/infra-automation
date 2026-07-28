@@ -1,0 +1,9 @@
+[project]
+name = "infrastructure-automation"
+version = "0.1.0"
+description = "Declarative platform modelling and infrastructure automation"
+requires-python = ">=3.13"
+dependencies = [
+  "PyYAML>=6.0",
+  "Yamale>=6.0",
+]

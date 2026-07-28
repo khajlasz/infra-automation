@@ -1,5 +1,5 @@
 
-deviceProfiles:
+device_profiles:
 
   mikrotik-chr-router:
     vendor: MikroTik

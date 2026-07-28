@@ -1,5 +1,5 @@
 
-computeProfiles:
+compute_profiles:
 
   small:
     cpu: 2

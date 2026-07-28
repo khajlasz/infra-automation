@@ -13,4 +13,8 @@ product:
 deployment_application:
   application: str()
   version: str(required=False)
-  configuration: map(required=False)
+  configuration: map(include('application_configuration'))
+
+---
+application_configuration:
+  contextPath: regex('^/.*$') 

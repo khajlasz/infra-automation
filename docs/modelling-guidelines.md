@@ -54,7 +54,7 @@ Example:
 Good
 
 ```yaml
-computeProfile: medium
+compute_profile: medium
 ```
 
 Bad
@@ -117,7 +117,7 @@ deployment: bw-adp-webex
 ```
 
 ```yaml
-computeProfile: medium
+compute_profile: medium
 ```
 
 ```yaml
@@ -128,6 +128,69 @@ References are validated by the framework.
 
 Schemas validate only structure.
 
+---
+
+## File Naming and Root Objects
+
+Each model file represents exactly one collection of objects.
+
+The filename and the root YAML key shall describe the same collection.
+
+The root YAML key must equal the filename after replacing `-` with `_`.
+
+Examples:
+
+| File | Root key |
+|------|----------|
+| `platform.yaml` | `platform` |
+| `sites.yaml` | `sites` |
+| `networks.yaml` | `networks` |
+| `device-profiles.yaml` | `device_profiles` |
+| `devices.yaml` | `devices` |
+| `compute-profiles.yaml` | `compute_profiles` |
+| `storage-profiles.yaml` | `storage_profiles` |
+| `nodes.yaml` | `nodes` |
+| `applications.yaml` | `applications` |
+| `deployments.yaml` | `deployments` |
+
+This convention enables the Loader to perform a simple, generic mapping:
+
+```
+filename
+    ↓
+replace '-' with '_'
+    ↓
+expected root key
+    ↓
+PlatformModel attribute
+```
+
+Example:
+
+```yaml
+# compute-profiles.yaml
+
+compute_profiles:
+
+  small:
+    cpu: 2
+    ram: 4096
+
+  medium:
+    cpu: 4
+    ram: 8192
+```
+
+becomes
+
+```python
+model.compute.compute_profiles["small"]
+```
+
+The Loader removes the outer wrapper object because it is already represented by
+the filename and the corresponding `PlatformModel` attribute.
+
+This transformation is lossless and is performed uniformly for every model file.
 ---
 
 ## Provider Independence

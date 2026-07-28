@@ -217,6 +217,64 @@ Keep data classes simple.
 Business logic belongs in validators and generators rather than model objects.
 
 ---
+## Code Readability
+
+The repository serves two purposes:
+
+- implement the Infrastructure Automation Framework,
+- help the project owner learn and understand the implementation.
+
+When introducing non-trivial Python language features or design patterns,
+prefer adding concise explanatory comments.
+
+Examples include:
+
+- dataclasses
+- field(default_factory=...)
+- __getattr__()
+- __contains__()
+- __repr__()
+- decorators
+- context managers
+- pathlib idioms
+- type hints
+- generic programming
+
+Comments should explain **why** a construct is used rather than merely
+describing what the code does.
+
+Example:
+
+```python
+# Each ModelDomain instance receives its own dictionary.
+# Using default_factory avoids sharing a mutable default between instances.
+data: dict[str, Any] = field(default_factory=dict)
+```
+
+Avoid excessive commenting of simple or self-explanatory code.
+Comments should improve maintainability and help a reader understand the
+design decisions behind the implementation.
+
+When implementing a new framework component, favour clear, educational code over
+clever or highly condensed implementations. Readability and maintainability are
+more important than minimising the number of lines of code.
+---
+### Internal Model
+
+The internal Python object model is not required to mirror the YAML structure
+exactly.
+
+The loader may perform small, lossless transformations that improve the
+usability of the API.
+
+Examples:
+
+- unwrap a top-level mapping when its single key matches the filename
+- normalise filenames by replacing '-' with '_'
+
+These transformations must never lose information or change the semantics of
+the model.
+---
 
 # AI Agent Instructions
 

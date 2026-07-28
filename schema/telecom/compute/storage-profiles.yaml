@@ -1,6 +1,6 @@
-storageProfiles: map(include('storage_profile'))
+storage_profiles: map(include('storage_profile'))
 ---
 storage_profile:
-  root: int()
+  root: int(min=10)
   application: int()
   logs: int()
