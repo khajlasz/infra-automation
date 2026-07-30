@@ -9,3 +9,26 @@
 # Local files
 *.tfvars
 *.tfvars.json
+
+# Python bytecode
+__pycache__/
+*.py[c]
+*$py.class
+
+# Virtual environment
+.venv/
+
+# Pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+*.egg-info/
+
+observability/logs/*.log
