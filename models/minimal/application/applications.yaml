@@ -1,0 +1,4 @@
+# Defines the single reusable application installed by service1.
+applications:
+  service1:
+    description: Minimal service

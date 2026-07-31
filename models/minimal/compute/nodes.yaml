@@ -1,0 +1,10 @@
+# Defines the single compute node and its references to the other domains.
+nodes:
+  node1:
+    site: site1
+    computeProfile: small
+    storageProfile: standard
+    deployment: service1
+    interfaces:
+      eth0:
+        network: net1

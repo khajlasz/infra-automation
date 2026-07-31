@@ -1,0 +1,5 @@
+# Defines the single logical network used by the node interface.
+networks:
+  net1:
+    description: Minimal network
+    zone: core
