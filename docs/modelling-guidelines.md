@@ -309,6 +309,22 @@ Examples:
 
 Nodes deploy Deployments.
 
+## Deployment Application Configuration
+
+Deployment-specific application configuration is optional. When present, it is
+defined directly on the application entry.
+
+```yaml
+applications:
+  - application: WebPortal
+    version: R24.3
+    configuration:
+      contextPath: /
+```
+
+The current schema validates `contextPath`. Additional configuration fields
+should be added only when a model and a generator require them.
+
 ---
 
 # Validation Philosophy
@@ -328,6 +344,24 @@ Checks:
 - Data types
 
 No cross-file validation is performed.
+
+### Running Structural Validation
+
+The validation CLI discovers model YAML files recursively and validates each
+file against the corresponding Yamale schema.
+
+```bash
+.venv/bin/python src/cli.py validate models/telecom
+```
+
+The minimal reference model uses the same telecom schema set:
+
+```bash
+.venv/bin/python src/cli.py validate models/minimal
+```
+
+Structural validation does not resolve references between files. That remains
+the responsibility of the future reference-validation stage.
 
 ---
 

@@ -20,7 +20,7 @@ def validate_schema(model_path: Path, schema_path: Path) -> None:
 
 def validate_model_schema(model_directory: Path, schema_directory: Path) -> None:
     """Validate every model YAML file against its corresponding schema."""
-    logger.info("Validating model schemas in %s", model_directory)
+    logger.info("Validating schema for model %s", model_directory)
     validated_file_count = 0
 
     for model_path, relative_path in discover_yaml_files(model_directory):
@@ -28,8 +28,9 @@ def validate_model_schema(model_directory: Path, schema_directory: Path) -> None
         logger.info("Validating model file %s", relative_path)
         try:
             validate_schema(model_path, schema_path)
-        except yamale.YamaleError:
+        except yamale.YamaleError as error:
             logger.error("Schema validation failed for %s", relative_path)
+            logger.error("Error: %s", error)
             raise
 
         validated_file_count += 1

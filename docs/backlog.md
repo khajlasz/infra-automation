@@ -35,12 +35,13 @@
 - [x] Define naming conventions
 - [x] Normalize object relationships
 - [x] Create telecom reference model
+- [x] Create minimal reference model
 
 ## Schema
 
 - [x] Generate Yamale schemas
-- [ ] Review generated schemas
-- [ ] Validate complete telecom model using Yamale
+- [x] Review generated schemas
+- [x] Validate complete telecom model using Yamale
 
 ---
 
@@ -48,10 +49,10 @@
 
 ## Loader
 
-- [ ] Load complete model
-- [ ] Load Yamale schemas
-- [ ] Validate model structure
-- [ ] Build internal object model
+- [x] Load complete model
+- [x] Load Yamale schemas
+- [x] Validate model structure
+- [x] Build internal object model
 - [ ] Resolve object references
 
 ## Validation
@@ -63,7 +64,7 @@
 
 ## CLI
 
-- [ ] validate command
+- [x] validate command
 - [ ] summary command
 
 ---
@@ -101,6 +102,7 @@
 
 # Sprint 5 - Tooling
 
+- [x] Local observability stack and shared framework logging
 - [ ] NetBox integration
 - [ ] GitHub Actions pipeline
 - [ ] Model visualisation
@@ -119,10 +121,10 @@
 
 ## v0.2
 
-- [ ] Python loader
-- [ ] Structural validation
+- [x] Python loader
+- [x] Structural validation
 - [ ] Reference validation
-- [ ] Validation CLI
+- [x] Validation CLI
 
 ## v0.3
 
