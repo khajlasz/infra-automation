@@ -13,7 +13,7 @@ product:
 deployment_application:
   application: str()
   version: str(required=False)
-  configuration: map(include('application_configuration'))
+  configuration: include('application_configuration', required=False)
 
 ---
 application_configuration:

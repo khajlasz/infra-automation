@@ -1,0 +1,8 @@
+# Defines the smallest complete platform and its deployment location.
+platform:
+  id: platform1
+  name: Minimal Platform
+  version: 0.1
+  description: Minimal model used to exercise the framework.
+  sites:
+    - site1

@@ -1,0 +1,6 @@
+# Defines the reusable storage layout assigned to node1.
+storage_profiles:
+  standard:
+    root: 10
+    application: 10
+    logs: 10

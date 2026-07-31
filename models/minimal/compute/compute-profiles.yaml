@@ -1,0 +1,5 @@
+# Defines the reusable compute capacity assigned to node1.
+compute_profiles:
+  small:
+    cpu: 1
+    ram: 1024

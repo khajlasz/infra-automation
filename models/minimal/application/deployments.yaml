@@ -1,0 +1,11 @@
+# Defines the deployment referenced by node1 and its installed application.
+deployments:
+  service1:
+    product:
+      vendor: Example
+      family: Minimal
+      edition: Service
+      version: "1.0"
+    applications:
+      - application: service1
+        version: "1.0"

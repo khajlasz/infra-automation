@@ -1,0 +1,5 @@
+# Defines the single location referenced by the platform and node.
+sites:
+  site1:
+    country: PL
+    role: primary

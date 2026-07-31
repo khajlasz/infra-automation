@@ -13,7 +13,7 @@ from model import ModelError
 
 class LoaderTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.model_directory = Path(__file__).parents[1] / "models" / "telecom"
+        self.model_directory = Path(__file__).parents[1] / "models" / "minimal"
 
     def test_loads_telecom_model_by_domain(self) -> None:
         model = Loader().load(self.model_directory)
