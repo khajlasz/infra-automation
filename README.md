@@ -48,9 +48,9 @@ The platform model becomes the **single source of truth**.
 
 ---
 
-## Current Reference Platform
+## Reference Models
 
-The first platform implemented in the repository is a telecom reference
+The primary platform implemented in the repository is a telecom reference
 architecture inspired by Cisco BroadWorks.
 
 It models:
@@ -66,6 +66,10 @@ BroadWorks is used only as a reference architecture.
 
 The modelling framework itself is product independent.
 
+The repository also contains a minimal reference model. It is deliberately
+small and exists to exercise loading and structural validation without adding
+telecom-specific complexity.
+
 ---
 
 ## Repository Structure
@@ -76,27 +80,24 @@ docs/
 ├── model.md
 └── modelling-guidelines.md
 
-model/
+models/
+├── minimal/
 └── telecom/
-    ├── platform/
-    ├── network/
-    ├── compute/
-    └── application/
+
+schema/
+└── telecom/
+
+src/
+├── cli.py
+├── loader/
+├── model/
+├── observability/
+└── validation/
+
+observability/
+└── docker-compose.yml
 
 terraform/
-```
-
-Future implementation will add:
-
-```
-src/
-├── loader/
-├── validator/
-├── generators/
-│   ├── terraform/
-│   ├── ansible/
-│   └── documentation/
-└── cli/
 ```
 
 ---
@@ -125,9 +126,13 @@ Relationships are expressed through references rather than duplicated values.
 |------|--------|
 | Platform Architecture | ✅ |
 | Infrastructure Object Model | ✅ |
-| Telecom Reference Model | 🚧 |
-| YAML Validation | Planned |
-| Python Loader | Planned |
+| Telecom Reference Model | ✅ |
+| Minimal Reference Model | ✅ |
+| YAML Schema Validation | ✅ |
+| Python Loader | ✅ |
+| Validation CLI | ✅ |
+| Local Observability Stack | ✅ |
+| Reference Validation | Planned |
 | Terraform Generator | Planned |
 | Ansible Generator | Planned |
 | Documentation Generator | Planned |
