@@ -3,8 +3,6 @@
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 from model import (
     ApplicationDomain,
     ComputeDomain,
@@ -14,6 +12,7 @@ from model import (
     PlatformModel,
 )
 from model.discovery import discover_yaml_files
+from model.parser import parse_yaml
 from observability import get_logger
 
 
@@ -22,8 +21,7 @@ logger = get_logger(__name__)
 
 def load_yaml(path: Path) -> dict[str, Any]:
     """Load a YAML mapping from *path*."""
-    with path.open(encoding="utf-8") as file:
-        data = yaml.safe_load(file)
+    data = parse_yaml(path)
 
     if data is None:
         return {}
