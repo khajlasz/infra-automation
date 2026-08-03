@@ -1,9 +1,23 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "infrastructure-automation"
 version = "0.1.0"
 description = "Declarative platform modelling and infrastructure automation"
 requires-python = ">=3.13"
 dependencies = [
-  "PyYAML>=6.0",
-  "Yamale>=6.0",
+    "PyYAML>=6.0",
+    "Yamale>=6.0",
 ]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
