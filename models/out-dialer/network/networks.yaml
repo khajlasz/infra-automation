@@ -1,0 +1,13 @@
+networks:
+
+  dmz:
+    site: lab
+    purpose: External client access
+
+  internal:
+    site: lab
+    purpose: Internal platform communication
+
+  database:
+    site: lab
+    purpose: Database communication

@@ -2,123 +2,307 @@
 
 ## Purpose and Status
 
-This document describes the target logical architecture for the infrastructure
-automation project and the current Terraform prototype that supports it.
+This document describes the target logical architecture for the Infrastructure
+Automation Framework and the reference platform used to demonstrate it.
 
-The target design uses a declarative infrastructure model as its primary source
-of truth. The model is validated and used to generate artifacts for deployment
-tools. The current implementation is an early AWS networking prototype; it does
-not yet model the sites, services, or security zones described below.
+The framework uses a declarative Platform Model as its primary source of truth.
+The model is validated before deployment artifacts are generated.
 
-## Design Principles
+The reference platform is a distributed Voice Campaign Platform inspired by
+enterprise outbound telecom systems. It is intentionally simplified while
+providing realistic infrastructure, networking and operational behaviour.
 
-- Define infrastructure data once in a tool-independent model.
-- Validate the model before creating deployment artifacts.
-- Keep the logical topology independent from a specific cloud provider.
-- Use generated artifacts for Terraform and Ansible rather than maintaining
-  their inputs independently.
+The current implementation focuses on establishing the Platform Model,
+validation framework and artifact generators.
 
-## Logical Topology
+---
 
-The target topology consists of two locations: Warsaw and Stockholm. Each
-location represents a separate data centre or availability zone.
+# Design Principles
 
-All service types are intended to have one instance in each location, except
-for NFM, which is deployed as a single instance in Warsaw. The exact HA,
-failover, and recovery behaviour remains to be defined.
+- Define infrastructure and application topology once in a deployment-independent Platform Model.
+- Separate logical architecture from deployment technology.
+- Validate the Platform Model before artifact generation.
+- Generate Terraform, Ansible and NetBox artifacts from the validated model.
+- Treat observability as part of the platform rather than an optional add-on.
+- Keep implementation simple and evolve abstractions only when multiple concrete use cases require them.
 
-## Service Types and Placement
+---
 
-| Service | Responsibility | Warsaw | Stockholm |
+# Reference Platform
+
+## Business Workflow
+
+The platform simulates an outbound voice campaign system.
+
+A customer creates a campaign consisting of:
+
+- campaign name,
+- campaign description,
+- audio announcement,
+- optional background music,
+- destination telephone numbers,
+- meeting information.
+
+The platform performs the following workflow:
+
+1. Customer creates a campaign.
+2. Portal validates user input.
+3. Campaign Manager performs business validation.
+4. Campaign is stored in the database.
+5. Campaign Manager dispatches execution.
+6. Call Simulation Platform simulates outbound calls.
+7. Campaign results are stored.
+8. Customer retrieves campaign status and results.
+
+No real SIP signalling or telephone calls are performed.
+
+The objective is to provide realistic platform behaviour suitable for
+infrastructure automation, observability and orchestration.
+
+---
+
+# Logical Services
+
+## Portal / REST API
+
+Responsibilities:
+
+- user authentication (simplified),
+- campaign creation,
+- upload campaign assets,
+- input validation,
+- campaign status,
+- campaign results.
+
+The Portal is the only externally accessible service.
+
+The Portal never communicates directly with the database.
+
+---
+
+## Campaign Manager
+
+The Campaign Manager owns the platform business logic.
+
+Responsibilities:
+
+- business validation,
+- campaign lifecycle,
+- campaign persistence,
+- scheduling,
+- dispatching campaigns,
+- collecting execution results.
+
+The Campaign Manager is the only service allowed to access the campaign
+database.
+
+---
+
+## Call Simulation Platform
+
+Simulates a telecom outbound campaign platform.
+
+Responsibilities:
+
+- receive campaign execution requests,
+- simulate outbound calls,
+- generate campaign results,
+- return execution statistics,
+- expose operational metrics.
+
+No real SIP signalling or media processing is performed.
+
+---
+
+## PostgreSQL Database
+
+Persistent storage.
+
+Stores:
+
+- users,
+- campaigns,
+- subscriber lists,
+- execution status,
+- execution results.
+
+---
+
+# Security Zones
+
+The platform is divided into logical security zones.
+
+## DMZ
+
+Contains externally accessible services.
+
+Current members:
+
+- Portal / REST API
+
+---
+
+## Application Network
+
+Contains internal business services.
+
+Current members:
+
+- Campaign Manager
+- Call Simulation Platform
+
+---
+
+## Database Network
+
+Contains persistent storage.
+
+Current members:
+
+- PostgreSQL
+
+The database is accessible only from the Application Network.
+
+---
+
+# Logical Communication
+
+| Source | Destination | Protocol | Purpose |
 | --- | --- | --- | --- |
-| AS | Service execution | One instance | One instance |
-| NS | Call routing | One instance | One instance |
-| MS | Media handling | One instance | One instance |
-| XSP | Web portal and cloud interconnections | One instance | One instance |
-| NFM | Licensing, alarms, performance, and software management | One instance | Not deployed |
+| Customer | Portal | HTTPS | User interface |
+| Portal | Campaign Manager | REST | Campaign operations |
+| Campaign Manager | PostgreSQL | SQL | Persistent storage |
+| Campaign Manager | Call Simulation Platform | REST | Campaign execution |
+| Call Simulation Platform | Campaign Manager | REST | Execution results |
 
-In this document, an *instance* is a logical service deployment. Its eventual
-implementation as one host, a virtual machine, or an HA pair is an open design
-decision.
+Future versions may replace selected REST interfaces with asynchronous messaging
+without changing the Platform Model.
 
-## Security Zones and Networks
+---
 
-| Zone | Networks | Purpose |
+# Platform Nodes
+
+The initial reference platform consists of four logical nodes.
+
+| Node | Hosted service |
+| --- | --- |
+| portal | Portal / REST API |
+| campaign | Campaign Manager |
+| simulator | Call Simulation Platform |
+| database | PostgreSQL |
+
+A node represents a logical compute resource.
+
+Its implementation as a Docker container, virtual machine or cloud instance is
+a deployment decision and is intentionally not part of the Platform Model.
+
+---
+
+# Logical Networks
+
+| Network | Security zone | Purpose |
 | --- | --- | --- |
-| Core / Control | `signalling`, `replication`, `media` | Internal signalling, state replication, and media traffic |
-| DMZ | `dmz-int`, `dmz-ext` | Internal and external demilitarized-zone traffic |
-| Operations, Administration, and Maintenance (OAM) | `core-oam`, `dmz-oam` | Management connectivity for core and DMZ services |
+| dmz | DMZ | External client access |
+| application | Application | Internal service communication |
+| database | Database | Persistent storage |
 
-CIDR ranges, subnet boundaries, and routing policies are not yet defined. They
-should be specified in the infrastructure model rather than embedded in the
-deployment tools.
+CIDR ranges, subnet allocation and routing policies belong to deployment
+artifacts and are generated from the Platform Model.
 
-## Service Interface Matrix
+---
+
+# Service Interface Matrix
 
 | Service | Connected networks |
 | --- | --- |
-| AS | `signalling`, `replication`, `core-oam` |
-| NS | `signalling`, `replication`, `core-oam` |
-| MS | `signalling`, `replication`, `media`, `core-oam` |
-| XSP | `dmz-oam`, `dmz-int`, `dmz-ext` |
-| NFM | `core-oam` |
+| Portal | dmz, application |
+| Campaign Manager | application, database |
+| Call Simulation Platform | application |
+| PostgreSQL | database |
 
-The future validation schema should enforce this matrix so that unsupported
-interfaces cannot be added to a service type accidentally.
+Semantic validation rules should ensure that unsupported interfaces cannot be
+added accidentally.
 
-## Network Elements and Connectivity
+---
 
-| Network element | Connected networks | Role |
-| --- | --- | --- |
-| Internal switch | `signalling`, `replication`, `media` | Connects internal core/control traffic |
-| External switch | `dmz-int`, `dmz-ext`, `dmz-oam` | Connects DMZ traffic |
-| OAM switch | `core-oam` | Connects core management traffic |
-| Firewall | `replication`, `dmz-int`, `dmz-ext`, `dmz-oam`, `core-oam` | Enforces traffic policy between connected networks |
+# Network Elements
 
-Firewall rules, permitted source/destination flows, and inter-site routing have
-not yet been defined. They should be captured as explicit policy in the model
-and translated into provider-specific controls.
+The initial implementation targets a simple routed topology.
 
-## Source of Truth and Automation Flow
+| Element | Role |
+| --- | --- |
+| Router / Firewall | Connects security zones and enforces traffic policy |
+| DMZ Switch | Connects externally accessible services |
+| Internal Switch | Connects application services |
+| Database Switch | Connects database services |
 
-As established in [ADR-001](../adr/ADR-001.md), the infrastructure model is the
-primary source of truth. Validation schemas are maintained separately, and
-deployment tools consume generated artifacts.
+The first implementation is expected to use MikroTik CHR as the virtual router.
+
+The exact implementation remains independent from the logical Platform Model.
+
+---
+
+# Source of Truth and Automation Flow
+
+The Platform Model is the primary source of truth.
 
 ```text
-Infrastructure model
-        |
-        v
-Schema validation
-        |
-        v
-Artifact generation
-   |             |
-   v             v
-Terraform      Ansible
+Platform Model
+        │
+        ▼
+Schema Validation
+        │
+        ▼
+Semantic Validation
+        │
+        ▼
+Validated Platform Model
+        │
+ ┌──────┼─────────┐
+ ▼      ▼         ▼
+Terraform NetBox Ansible
 ```
 
-## Current Terraform Implementation Mapping
+Every deployment artifact is generated from the validated Platform Model.
 
-The Terraform prototype currently deploys AWS networking in `eu-central-1`:
+---
 
-| Resource | Configuration | Target-architecture relationship |
-| --- | --- | --- |
-| Production VPC | `enterprise-prod-vpc`, `10.10.0.0/16`, subnet `10.10.1.0/24` | Prototype environment; not yet mapped to a site or security zone |
-| Development VPC | `enterprise-dev-vpc`, `10.20.0.0/16`, subnet `10.20.1.0/24` | Prototype environment; not yet mapped to a site or security zone |
-| Transit Gateway | `central-core-tgw` with VPC attachments | Prototype core routing; not yet a representation of the logical switches or firewall |
+# Initial Deployment Strategy
 
-Terraform currently contains direct CIDR and resource values. Those values are
-temporary prototype inputs and should ultimately be generated from the validated
-infrastructure model.
+The first implementation prioritises rapid iteration.
 
-## Open Decisions
+| Component | Initial runtime |
+| --- | --- |
+| Portal | Docker |
+| Campaign Manager | Docker |
+| Call Simulation Platform | Docker |
+| PostgreSQL | Docker |
+| Router / Firewall | MikroTik CHR virtual machine |
 
-- Define HA, failover, and disaster-recovery behaviour for each service.
-- Define the CIDR plan and subnet allocation per site and security zone.
-- Define firewall policy and allowed traffic flows.
-- Define inter-site connectivity and replication behaviour.
-- Map logical sites and network elements to AWS accounts, regions, VPCs, and
-  availability zones (or to physical data centres).
-- Define the model, schemas, generators, and Ansible artifacts required to
-  implement the model-driven workflow.
+Future versions may replace selected Docker deployments with virtual machines
+without changing the logical Platform Model.
+
+---
+
+# Observability
+
+Every logical service shall expose:
+
+- structured logs,
+- Prometheus metrics,
+- health endpoint.
+
+Grafana, Prometheus and Loki are deployed as supporting infrastructure and
+monitor the generated platform.
+
+---
+
+# Open Decisions
+
+- Introduce asynchronous messaging between Campaign Manager and Call Simulation Platform.
+- Define deployment profiles for multiple runtime targets.
+- Define NetBox object generation.
+- Define Terraform module structure.
+- Define Ansible inventory and host variable generation.
+- Define firewall policy between security zones.
+- Define cloud and hybrid deployment scenarios.

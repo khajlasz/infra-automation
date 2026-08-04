@@ -1,0 +1,16 @@
+applications:
+
+  Portal:
+    description: Customer portal and REST API
+
+  Authentication:
+    description: User authentication service
+
+  CampaignManager:
+    description: Campaign lifecycle management
+
+  CallSimulation:
+    description: Outbound call simulation engine
+
+  PostgreSQL:
+    description: Campaign database
