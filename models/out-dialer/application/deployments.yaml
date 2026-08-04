@@ -1,0 +1,48 @@
+deployments:
+
+  portal:
+    product:
+      vendor: Out-Dialer
+      family: VoiceCampaignPlatform
+      edition: Portal
+      version: "0.1"
+
+    applications:
+      - application: Portal
+        version: "0.1"
+
+      - application: Authentication
+        version: "0.1"
+
+  campaign:
+    product:
+      vendor: Out-Dialer
+      family: VoiceCampaignPlatform
+      edition: CampaignManager
+      version: "0.1"
+
+    applications:
+      - application: CampaignManager
+        version: "0.1"
+
+  call-simulator:
+    product:
+      vendor: Out-Dialer
+      family: VoiceCampaignPlatform
+      edition: CallSimulation
+      version: "0.1"
+
+    applications:
+      - application: CallSimulation
+        version: "0.1"
+
+  database:
+    product:
+      vendor: PostgreSQL
+      family: PostgreSQL
+      edition: Community
+      version: "17"
+
+    applications:
+      - application: PostgreSQL
+        version: "17"

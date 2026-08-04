@@ -1,0 +1,11 @@
+device_profiles:
+
+  mikrotik-chr-router:
+    vendor: MikroTik
+    model: CHR
+    type: router
+
+    interfaces:
+      ether1: {}
+      ether2: {}
+      ether3: {}

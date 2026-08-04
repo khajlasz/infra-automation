@@ -1,0 +1,15 @@
+devices:
+
+  fw-lab:
+    site: lab
+    profile: mikrotik-chr-router
+
+    interfaces:
+      ether1:
+        network: dmz
+
+      ether2:
+        network: internal
+
+      ether3:
+        network: database

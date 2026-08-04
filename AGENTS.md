@@ -297,6 +297,22 @@ When refactoring:
 
 If uncertain, stop and ask for clarification.
 
+## Simplicity Before Abstraction
+
+Prefer the simplest implementation that satisfies the current requirements.
+
+Do not introduce classes, extension points, interfaces or generic frameworks
+unless they provide immediate value.
+
+When in doubt:
+
+- prefer a function over a class,
+- prefer explicit code over indirection,
+- introduce abstractions only after multiple concrete use cases emerge.
+
+The framework should evolve from working implementations rather than anticipated
+future requirements.
+
 ---
 
 # Definition of Done

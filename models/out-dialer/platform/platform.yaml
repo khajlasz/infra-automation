@@ -1,0 +1,12 @@
+platform:
+
+  id: out-dialer
+
+  name: Out-Dialer Reference Platform
+
+  version: 0.1
+
+  description: >
+    Declarative reference platform for a distributed
+    outbound voice campaign system demonstrating
+    infrastructure automation.

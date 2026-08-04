@@ -1,0 +1,42 @@
+
+nodes:
+
+  portal:
+    site: lab
+    computeProfile: small
+    deployment: portal
+
+    interfaces:
+      eth0:
+        network: dmz
+      eth1:
+        network: internal
+
+  campaign:
+    site: lab
+    computeProfile: medium
+    deployment: campaign
+
+    interfaces:
+      eth0:
+        network: internal
+      eth1:
+        network: database
+
+  call_simulator:
+    site: lab
+    computeProfile: medium
+    deployment: call-simulator
+
+    interfaces:
+      eth0:
+        network: internal
+
+  database:
+    site: lab
+    computeProfile: large
+    deployment: database
+
+    interfaces:
+      eth0:
+        network: database

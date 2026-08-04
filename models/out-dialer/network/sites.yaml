@@ -1,0 +1,5 @@
+sites:
+
+  lab:
+    country: PL
+    role: primary
