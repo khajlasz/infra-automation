@@ -9,7 +9,7 @@ applications:
   CampaignManager:
     description: Campaign lifecycle management
 
-  CallSimulation:
+  CallSimulator:
     description: Outbound call simulation engine
 
   PostgreSQL:
