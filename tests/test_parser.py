@@ -1,11 +1,14 @@
 """Tests for the YAML parser module."""
 
-import tempfile
 import os
+import tempfile
 from pathlib import Path
-from src.model.parser import parse_yaml
-from src.model.errors import ModelParseError
+import sys
 
+sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
+
+from model.parser import parse_yaml
+from model.errors import ModelParseError
 
 def test_parse_valid_yaml():
     """Test parsing valid YAML content."""

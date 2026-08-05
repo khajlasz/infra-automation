@@ -1,11 +1,10 @@
-nodes: map(include('node'))
+devices: map(include('device'))
 ---
-node:
+device:
   site: str()
-  computeProfile: str()
-  storageProfile: str()
-  deployment: str()
+  profile: str()
   interfaces: map(include('network_interface'))
+  description: str(required=False)
 ---
 network_interface:
   network: str()

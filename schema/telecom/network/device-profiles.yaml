@@ -1,6 +1,0 @@
-device_profiles: map(include('device_profile'))
----
-device_profile:
-  vendor: str()
-  model: str()
-  type: enum('router', 'switch', 'firewall')

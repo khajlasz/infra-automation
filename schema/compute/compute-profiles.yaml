@@ -3,3 +3,4 @@ compute_profiles: map(include('compute_profile'))
 compute_profile:
   cpu: int(min=1)
   ram: int(min=1024)
+  description: str(required=False)

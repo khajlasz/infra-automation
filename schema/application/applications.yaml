@@ -2,3 +2,4 @@ applications: map(include('application'))
 ---
 application:
   description: str()
+  version: str(required=False)

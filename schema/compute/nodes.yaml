@@ -1,0 +1,12 @@
+nodes: map(include('node'))
+---
+node:
+  site: str()
+  computeProfile: str()
+  storageProfile: str(required=False)
+  deployment: str()
+  interfaces: map(include('network_interface'))
+  description: str(required=False)
+---
+network_interface:
+  network: str()
