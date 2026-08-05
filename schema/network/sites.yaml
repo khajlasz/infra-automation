@@ -3,3 +3,5 @@ sites: map(include('site'))
 site:
   country: str()
   role: str()
+  description: str(required=False)
+  region: str(required=False)

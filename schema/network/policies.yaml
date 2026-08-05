@@ -2,3 +2,5 @@ policies: map(include('policy'))
 ---
 policy:
   description: str()
+  type: str(required=False)
+  rules: list(str(), required=False)

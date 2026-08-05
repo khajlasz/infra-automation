@@ -23,7 +23,7 @@ def main() -> int:
 
     arguments = parser.parse_args()
     if arguments.command == "validate":
-        schema_directory = Path(__file__).parents[1] / "schema" / "telecom"
+        schema_directory = Path(__file__).parents[1] / "schema"
         validate_model_schema(arguments.model_directory, schema_directory)
 
     return 0

@@ -5,4 +5,4 @@ platform_definition:
   name: str()
   version: num()
   description: str()
-  sites: list(str())
+  sites: list(str(), required=False)

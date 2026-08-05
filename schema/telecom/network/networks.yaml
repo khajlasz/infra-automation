@@ -1,5 +1,0 @@
-networks: map(include('network'))
----
-network:
-  description: str()
-  zone: str()

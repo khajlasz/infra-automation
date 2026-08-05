@@ -3,6 +3,7 @@ deployments: map(include('deployment'))
 deployment:
   product: include('product')
   applications: list(include('deployment_application'))
+  description: str(required=False)
 ---
 product:
   vendor: str()

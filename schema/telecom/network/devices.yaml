@@ -1,9 +1,0 @@
-devices: map(include('device'))
----
-device:
-  site: str()
-  profile: str()
-  interfaces: map(include('network_interface'))
----
-network_interface:
-  network: str()

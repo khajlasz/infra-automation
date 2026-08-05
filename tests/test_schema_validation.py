@@ -15,5 +15,5 @@ class ModelSchemaValidationTests(unittest.TestCase):
 
         validate_model_schema(
             repository_root / "models" / "minimal",
-            repository_root / "schema" / "telecom",
+            repository_root / "schema",
         )

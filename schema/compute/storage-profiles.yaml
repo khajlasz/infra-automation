@@ -4,3 +4,4 @@ storage_profile:
   root: int(min=10)
   application: int()
   logs: int()
+  description: str(required=False)
