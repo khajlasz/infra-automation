@@ -15,20 +15,20 @@ class LoaderTests(unittest.TestCase):
     def setUp(self) -> None:
         self.model_directory = Path(__file__).parents[1] / "models" / "minimal"
 
-    def test_loads_telecom_model_by_domain(self) -> None:
+    def test_loads_model_by_domain(self) -> None:
         model = Loader().load(self.model_directory)
 
-        self.assertIn("signalling", model.network.networks)
-        self.assertIn("as01", model.compute.nodes)
-        self.assertIn("bw-as", model.application.deployments)
+        self.assertIn("node1", model.compute.nodes)
+        self.assertIn("service1", model.application.deployments)
         self.assertIn("small", model.compute.compute_profiles)
+        self.assertIn("net1", model.network.networks)
 
     def test_domain_keys_and_membership(self) -> None:
         model = Loader().load(self.model_directory)
 
         self.assertEqual(
             model.network.keys(),
-            ["device_profiles", "devices", "networks", "policies", "sites"],
+            ["networks", "sites"],
         )
         self.assertIn("networks", model.network)
         self.assertNotIn("missing", model.network)
@@ -44,8 +44,7 @@ class LoaderTests(unittest.TestCase):
 
         self.assertEqual(
             repr(model.network),
-            "ModelDomain(objects=['device_profiles', 'devices', 'networks', "
-            "'policies', 'sites'])",
+            "ModelDomain(objects=['networks', 'sites'])",
         )
 
     def test_preserves_nested_directory_hierarchy(self) -> None:
