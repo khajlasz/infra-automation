@@ -23,8 +23,18 @@ def validate_model(model_directory: Path) -> None:
     # Load the complete model first
     model = Loader().load(model_directory)
     
-    # Run all validation rules, currently only REF-001 implemented
-    _validate_ref_001(model)
+    # Run all validation rules
+    logger.info("Starting semantic validation")
+    
+    # Simple rule registry - execute rules in order
+    RULES = [
+        _validate_ref_001,
+    ]
+    
+    for rule in RULES:
+        rule(model)
+    
+    logger.info("Semantic validation completed successfully")
 
 
 def _validate_ref_001(model) -> None:
