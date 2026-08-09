@@ -36,7 +36,7 @@ applications:
         protocol: HTTP
         port: 9090
   
-  CallSimulation:
+  CallSimulator:
     description: Simulates outbound voice campaign execution.
 
     endpoints:
