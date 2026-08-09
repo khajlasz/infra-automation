@@ -1,4 +1,4 @@
-# Validation Registry
+# Semantic Validation Registry
 
 This document defines the semantic validation rules implemented by the
 Infrastructure Automation Framework.
@@ -49,11 +49,9 @@ Examples:
 
 | ID | Category | Title | Severity | Status |
 |----|----------|-------|----------|--------|
-| REF-001 | Reference Integrity | Node references an existing site | ERROR | Planned |
+| REF-001 | Reference Integrity | Node references an existing site | ERROR | Implemented |
 | REF-002 | Reference Integrity | Interface references an existing network | ERROR | Planned |
 | REF-003 | Reference Integrity | Deployment references an existing application | ERROR | Planned |
-| UNI-001 | Uniqueness | IP addresses are unique | ERROR | Planned |
-| UNI-002 | Uniqueness | Node names are unique | ERROR | Planned |
 
 ---
 
@@ -95,7 +93,7 @@ ERROR
 
 ### Status
 
-Planned
+Implemented
 
 ---
 
@@ -163,50 +161,6 @@ Every deployment SHALL reference an existing application.
 
 ```
 REF-003: Deployment '{deployment}' references unknown application '{application}'.
-```
-
-### Severity
-
-ERROR
-
-### Status
-
-Planned
-
----
-
-# Uniqueness Rules
-
----
-
-## UNI-001
-
-### Title
-
-IP addresses are unique.
-
-### Purpose
-
-Ensure every interface has a globally unique IP address.
-
-### Scope
-
-`model.compute.nodes[*].interfaces[*]`
-
-### Property
-
-`ipAddress`
-
-### Validation
-
-The value of `ipAddress` SHALL be unique across all interfaces.
-
-### Error Message
-
-```
-UNI-001: Duplicate IP address '{ipAddress}' found on interface '{interface2}'
-of node '{node2}'. It is already assigned to interface '{interface1}' of node
-'{node1}'.
 ```
 
 ### Severity
