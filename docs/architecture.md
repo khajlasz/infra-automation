@@ -126,6 +126,44 @@ Stores:
 - execution status,
 - execution results.
 
+# Application Endpoints
+
+Applications define the logical endpoints they expose.
+
+An endpoint represents a logical service interface and is independent of the deployment technology.
+
+Each endpoint defines:
+
+- protocol
+- port
+
+Examples include:
+
+- HTTPS
+- REST
+- SQL
+- Prometheus metrics
+
+The Platform Model intentionally describes application endpoints rather than Docker ports, Kubernetes Services or firewall rules.
+
+Deployment generators derive technology-specific artifacts from the logical endpoint definitions.
+
+Examples:
+
+Platform Model endpoint
+
+↓
+
+Docker Compose published port
+
+↓
+
+Kubernetes Service
+
+↓
+
+Firewall policy
+
 ---
 
 # Security Zones
