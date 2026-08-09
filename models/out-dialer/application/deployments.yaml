@@ -29,11 +29,11 @@ deployments:
     product:
       vendor: Out-Dialer
       family: VoiceCampaignPlatform
-      edition: CallSimulation
+      edition: CallSimulator
       version: "0.1"
 
     applications:
-      - application: CallSimulation
+      - application: CallSimulator
         version: "0.1"
 
   database:
