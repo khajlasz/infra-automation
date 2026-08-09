@@ -1,16 +1,57 @@
 applications:
 
-  Portal:
-    description: Customer portal and REST API
-
   Authentication:
-    description: User authentication service
+    description: Authentication and identity service.
 
+    endpoints:
+      https:
+        protocol: HTTPS
+        port: 8444
+
+      metrics:
+        protocol: HTTP
+        port: 9090
+
+  Portal:
+    description: User-facing REST API for campaign management.
+
+    endpoints:
+      https:
+        protocol: HTTPS
+        port: 8443
+
+      metrics:
+        protocol: HTTP
+        port: 9090
+  
   CampaignManager:
-    description: Campaign lifecycle management
+    description: Business logic and campaign lifecycle management.
 
-  CallSimulator:
-    description: Outbound call simulation engine
+    endpoints:
+      rest:
+        protocol: HTTP
+        port: 8080
+
+      metrics:
+        protocol: HTTP
+        port: 9090
+  
+  CallSimulation:
+    description: Simulates outbound voice campaign execution.
+
+    endpoints:
+      rest:
+        protocol: HTTP
+        port: 8081
+
+      metrics:
+        protocol: HTTP
+        port: 9090
 
   PostgreSQL:
-    description: Campaign database
+    description: Persistent campaign database.
+
+    endpoints:
+      sql:
+        protocol: TCP
+        port: 5432
