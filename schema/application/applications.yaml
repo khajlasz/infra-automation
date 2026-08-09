@@ -4,7 +4,6 @@ application:
   description: str()
   version: str(required=False)
   endpoints: map(include('endpoint'), required=False)
-  metrics: map(include('endpoint'), required=False)
 
 endpoint:
   protocol: str()

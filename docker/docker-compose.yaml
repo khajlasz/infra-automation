@@ -1,0 +1,52 @@
+---
+services:
+
+  portal:
+    image: out-dialer/portal:0.1
+    hostname: portal
+    networks:
+      dmz:
+      application:
+    ports:
+      - "8443:80"
+
+  campaign:
+    image: out-dialer/campaign-manager:0.1
+    hostname: campaign
+    networks:
+      application:
+      database:
+    ports:
+      - "8080:80"
+      - "19090:9090"
+
+  call-simulator:
+    image: out-dialer/call-simulator:0.1
+    hostname: call-simulator
+    networks:
+      application:
+    ports:
+      - "8081:80"
+      - "29090:9090"
+
+  database:
+    image: postgres:17
+    hostname: database
+    environment:
+      POSTGRES_DB: outdialer
+      POSTGRES_USER: outdialer
+      POSTGRES_PASSWORD: outdialer
+    networks:
+      database:
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
+
+networks:
+  dmz:
+  application:
+  database:
