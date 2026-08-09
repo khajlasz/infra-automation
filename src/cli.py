@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 
-from validation import validate_model_schema
+from validation import validate_model_schema, validate_model
 
 
 def main() -> int:
@@ -25,6 +25,7 @@ def main() -> int:
     if arguments.command == "validate":
         schema_directory = Path(__file__).parents[1] / "schema"
         validate_model_schema(arguments.model_directory, schema_directory)
+        validate_model(arguments.model_directory)
 
     return 0
 
