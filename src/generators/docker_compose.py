@@ -32,6 +32,26 @@ class DockerComposeGenerator:
         
         return f"{vendor}/{edition}:{version}"
 
+    def _build_networks(self, node: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Build Docker Compose networks dictionary from compute node interfaces.
+        
+        Args:
+            node: The compute node dictionary
+            
+        Returns:
+            A dictionary of networks for the Docker Compose service
+        """
+        networks = {}
+        
+        # Get all unique network names from interface definitions
+        for interface in node["interfaces"].values():
+            # Use the network name directly as specified in the platform model
+            network_name = interface["network"]
+            networks[network_name] = {}
+        
+        return networks
+
     def _generate_services(self, model: PlatformModel, compose_spec: Dict[str, Any]) -> None:
         """
         Generate service entries for compute nodes.
@@ -54,6 +74,9 @@ class DockerComposeGenerator:
             
             # Set the hostname to the node name
             service["hostname"] = node_name
+            
+            # Add networks from interfaces
+            service["networks"] = self._build_networks(node)
 
     def generate(self, model: PlatformModel) -> Dict[str, Any]:
         """

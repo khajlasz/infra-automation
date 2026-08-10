@@ -81,6 +81,26 @@ class DockerComposeGeneratorTests(unittest.TestCase):
                 self.assertIn("hostname", result["services"][node_name])
                 self.assertEqual(result["services"][node_name]["hostname"], node_name)
 
+    def test_generate_networks(self) -> None:
+        """Test that Docker Compose networks are generated from compute node interfaces."""
+        model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
+        model = self.loader.load(model_directory)
+        result = self.generator.generate(model)
+        
+        # Test each service for expected networks
+        expected_networks = {
+            "portal": {"dmz", "internal"},
+            "campaign": {"internal", "database"},
+            "call_simulator": {"internal"},
+            "database": {"database"}
+        }
+        
+        for node_name, expected_node_networks in expected_networks.items():
+            with self.subTest(node=node_name):
+                self.assertIn("networks", result["services"][node_name])
+                actual_networks = set(result["services"][node_name]["networks"].keys())
+                self.assertEqual(actual_networks, expected_node_networks)
+
 
 if __name__ == "__main__":
     unittest.main()
