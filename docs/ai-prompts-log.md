@@ -824,3 +824,297 @@ Deliverables
 
 Do not create a commit.
 When implementing helper functions, prefer making them generic enough to be reused by future generators, but do not introduce abstractions that are not required by the current milestone.
+
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+You are implementing the next milestone of the Docker Compose generator.
+
+The generator already produces:
+
+services:
+    <service>:
+        image:
+
+The implementation has dedicated unit tests.
+
+Do not refactor existing code.
+
+Do not introduce new abstractions.
+
+------------------------------------------------------------------------
+Objective
+------------------------------------------------------------------------
+
+Generate Docker Compose hostnames.
+
+Example:
+
+services:
+
+  portal:
+    image: out-dialer/portal:0.1
+    hostname: portal
+
+------------------------------------------------------------------------
+Architecture
+------------------------------------------------------------------------
+
+The hostname is derived directly from the compute node name.
+
+Rule:
+
+compute.nodes.<node-name>
+
+↓
+
+services.<node-name>.hostname
+
+No model traversal is required.
+
+Do not introduce helper methods for hostname generation.
+A simple assignment is sufficient.
+
+------------------------------------------------------------------------
+Implementation
+------------------------------------------------------------------------
+
+Inside _generate_services():
+
+after image generation
+
+add
+
+service["hostname"] = node_name
+
+------------------------------------------------------------------------
+Scope
+------------------------------------------------------------------------
+
+Implement ONLY:
+
+- hostname generation
+
+Do NOT implement:
+
+- networks
+- ports
+- volumes
+- YAML serialization
+- CLI integration
+
+Do not modify image generation.
+
+------------------------------------------------------------------------
+Tests
+------------------------------------------------------------------------
+
+Add:
+
+test_generate_hostnames()
+
+Verify that every generated service has a hostname equal to the corresponding compute node name.
+
+Derive the expected values from the loaded Platform Model.
+
+------------------------------------------------------------------------
+Validation
+------------------------------------------------------------------------
+
+Run the relevant tests using
+
+.venv/bin/python -m pytest
+
+Always use the project virtual environment.
+
+------------------------------------------------------------------------
+Deliverables
+------------------------------------------------------------------------
+
+1. Explain the implementation.
+2. Implement the feature.
+3. Run the tests.
+4. Summarize the changes.
+
+Do not create a commit.
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+You are implementing the next milestone of the Docker Compose generator.
+
+The generator already produces:
+
+services:
+    <service>:
+        image:
+        hostname:
+
+Do not refactor existing code.
+
+Do not introduce new abstractions.
+
+------------------------------------------------------------------------
+Objective
+------------------------------------------------------------------------
+
+Generate Docker Compose service networks.
+
+Example
+
+Platform Model
+
+interfaces:
+
+  eth0:
+    network: dmz
+
+  eth1:
+    network: application
+
+↓
+
+Docker Compose
+
+services:
+
+  portal:
+
+    networks:
+
+      dmz:
+
+      application:
+
+------------------------------------------------------------------------
+Architecture
+------------------------------------------------------------------------
+
+The generator derives Docker networks from compute node interfaces.
+
+Transformation:
+
+compute node
+
+↓
+
+interfaces
+
+↓
+
+network attribute
+
+↓
+
+unique network names
+
+↓
+
+service.networks
+
+Docker Compose does not use interface names.
+
+Only the referenced network names are generated.
+
+------------------------------------------------------------------------
+Rules
+------------------------------------------------------------------------
+
+- Ignore interface names.
+- Generate one entry per unique network.
+- Preserve the network name exactly as defined in the Platform Model.
+- Use the dictionary form:
+
+    networks:
+        dmz:
+        application:
+
+Do not generate top-level Compose networks yet.
+
+That will be implemented in a later milestone.
+
+------------------------------------------------------------------------
+Implementation
+------------------------------------------------------------------------
+
+Add a helper:
+
+_build_networks(node)
+
+which returns the Docker Compose networks dictionary.
+
+Inside _generate_services():
+
+    service["networks"] = ...
+
+------------------------------------------------------------------------
+Scope
+------------------------------------------------------------------------
+
+Implement ONLY:
+
+- service networks
+
+Do NOT implement:
+
+- top-level networks
+- ports
+- volumes
+- YAML serialization
+- CLI integration
+
+------------------------------------------------------------------------
+Tests
+------------------------------------------------------------------------
+
+Add
+
+test_generate_networks()
+
+Verify that each generated service contains exactly the networks referenced by the compute node interfaces.
+
+Derive expected values from the loaded Platform Model.
+
+Do not hardcode network names.
+
+------------------------------------------------------------------------
+Validation
+------------------------------------------------------------------------
+
+Run the relevant tests using
+
+.venv/bin/python -m pytest
+
+Always use the project virtual environment.
+
+------------------------------------------------------------------------
+Deliverables
+
+1. Explain the implementation.
+2. Implement the feature.
+3. Run the tests.
+4. Summarize the changes.
+
+Do not create a commit.
+
+Please simplify _build_networks().
+
+The generator consumes a validated PlatformModel.
+
+Remove the defensive checks for:
+
+- interfaces
+- network
+
+Iterate directly over:
+
+node["interfaces"].values()
+
+The generator should trust that every interface contains a network reference.
+
+Also remove the unused interface_name variable.
+
+No functional changes.
+
+Run the existing tests.
+
+Do not modify any other code.
