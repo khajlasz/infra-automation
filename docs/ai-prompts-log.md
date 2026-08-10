@@ -226,3 +226,298 @@ Provide:
 - explanation of every change
 - validation results
 - any architectural concerns (do NOT implement them)
+
+
+
+
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+Task: Finish the semantic validation framework integration.
+
+Context
+
+The project already has two validation stages:
+
+1. Schema validation (Yamale) – fully implemented and exposed through the CLI.
+2. Semantic validation – framework exists but is not yet integrated.
+
+Current implementation:
+
+- src/validation/schema.py
+- src/validation/framework.py
+- src/cli.py
+
+The semantic framework currently contains one implemented rule:
+
+REF-001 – Every node SHALL reference an existing site.
+
+The rule implementation itself is correct and MUST NOT be redesigned.
+
+Goal
+
+Integrate the semantic validation framework into the normal validation workflow while keeping the implementation simple.
+
+Requirements
+
+1. Read the current implementation first.
+
+2. Update the CLI so that
+
+    python src/cli.py validate <model>
+
+performs BOTH:
+
+- schema validation
+- semantic validation
+
+in this order.
+
+Semantic validation SHALL execute only if schema validation succeeds.
+
+3. Improve framework.py only where beneficial.
+
+Keep the implementation intentionally simple.
+
+It is acceptable to introduce a simple rule registry, for example:
+
+RULES = [
+    _validate_ref_001,
+]
+
+and execute:
+
+for rule in RULES:
+    rule(model)
+
+Do NOT introduce classes, decorators, plugins, dynamic discovery or any additional abstraction.
+
+4. Improve logging.
+
+Current logging is minimal.
+
+Produce readable logs showing:
+
+- model loading
+- semantic validation started
+- rule execution
+- successful completion
+
+Do not over-engineer the logging.
+
+5. Update tests as required.
+
+Existing tests must continue to pass.
+
+If new tests are needed, keep them minimal.
+
+Validation
+
+After implementation execute:
+
+python -m pytest
+
+and
+
+python src/cli.py validate models/minimal
+
+python src/cli.py validate models/telecom
+
+python src/cli.py validate models/out-dialer
+
+Acceptance criteria
+
+- CLI executes schema validation followed by semantic validation.
+- Existing REF-001 rule is executed through the framework.
+- All tests pass.
+- No unnecessary abstractions introduced.
+- Keep the code style consistent with the rest of the project.
+
+Important
+
+Read the current implementation before making any changes.
+
+Minimize the diff.
+
+Preserve the current architecture.
+
+This task is framework integration, NOT implementation of additional validation rules.
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+You are implementing features in the infra-automation project.
+
+This project is a long-term portfolio demonstrating model-driven infrastructure automation. The architecture is intentionally conservative: correctness, maintainability and clean abstractions are more important than producing large amounts of code.
+
+## Development Rules
+
+- Do NOT introduce new abstractions unless explicitly requested.
+- Do NOT refactor unrelated code.
+- Do NOT change public interfaces unless requested.
+- Preserve existing coding style.
+- Follow the project's architecture and existing package layout.
+- Keep commits small and focused.
+- Prefer explicit code over clever code.
+- If you are unsure, ask instead of inventing architecture.
+
+## Python Environment
+
+IMPORTANT:
+
+Always use the project's virtual environment.
+
+Never execute:
+
+python
+pip
+pytest
+
+Always execute:
+
+.venv/bin/python ...
+.venv/bin/pip ...
+.venv/bin/pytest ...
+
+Examples:
+
+.venv/bin/python -m pytest
+.venv/bin/python src/cli.py validate models/out-dialer
+
+Never assume the system Python.
+
+## Validation
+
+Before considering a task complete:
+
+- run formatter if needed
+- run the affected unit tests
+- run only the necessary tests first
+- if project-wide validation is requested, use the .venv interpreter
+
+If you cannot execute something, clearly explain why.
+
+## Current Project Architecture
+
+Platform Model
+
+↓
+
+Loader
+
+↓
+
+Validation
+    - Schema
+    - Semantic
+
+↓
+
+Generators
+    - Docker Compose
+    - Terraform (future)
+    - Ansible (future)
+    - NetBox (future)
+
+Generators consume the already loaded Platform Model.
+Generators NEVER parse YAML directly.
+
+## Current Task
+
+Implement the first Docker Compose generator.
+
+The generator should be intentionally incremental.
+
+### Scope
+
+Create:
+
+src/generators/docker_compose.py
+
+Introduce:
+
+class DockerComposeGenerator
+
+with:
+
+generate(model) -> dict
+
+The method returns a Python dictionary representing a Docker Compose specification.
+
+Do NOT serialize YAML yet.
+
+Do NOT write files yet.
+
+Generate ONLY:
+
+services:
+    <service-name>:
+
+where service names are derived from compute.nodes.
+
+Do not generate images, networks, ports or volumes yet.
+
+## Implementation Guidelines
+
+- Iterate over model.compute.nodes.
+- Build a Python dict.
+- Keep methods small.
+- Add docstrings.
+- Use type hints where appropriate.
+- Follow existing project logging conventions.
+- Avoid premature generalization.
+
+## Deliverables
+
+1. Explain the design before writing code.
+2. Implement the generator.
+3. Run the relevant tests using .venv.
+4. Summarize the changes.
+5. Do not create a commit.
+
+Do not optimize for future generators.
+
+Implement only what is required by the current milestone.
+
+Future generators (Terraform, Ansible, Kubernetes, NetBox) must not influence today's design unless explicitly requested.
+
+If modifying CLI commands, preserve backward compatibility unless explicitly instructed otherwise.
+
+Do not rename commands or parameters.
+
+Before writing code:
+
+1. Briefly explain your proposed implementation.
+2. Identify which existing modules will be modified.
+3. Wait only if you discover an architectural conflict.
+Otherwise proceed with implementation.
+
+Please update the Docker Compose generator based on the following review:
+
+1. Remove the defensive hasattr() check.
+
+The generator consumes a validated PlatformModel. Therefore model.compute.nodes is guaranteed to exist. Iterate directly over model.compute.nodes.
+
+2. Extract service generation into a private helper.
+
+Instead of implementing everything inside generate(), introduce:
+
+_generate_services(model, compose_spec)
+
+The generate() method should only:
+
+- initialize the compose dictionary
+- call _generate_services()
+- return the dictionary
+
+Do not introduce any additional abstractions.
+
+Do not implement images, networks, ports or YAML serialization.
+
+Run the relevant tests using:
+
+.venv/bin/python -m pytest
+
+Remove test_generate_handles_empty_nodes().
+
+Instead, update the out-dialer test to derive the expected service names directly from model.compute.nodes rather than hardcoding them.
+
+This keeps the tests focused on the architectural rule that every compute node becomes a Docker Compose service and avoids mutating the loaded PlatformModel into an artificial state.
