@@ -44,6 +44,31 @@ class DockerComposeGeneratorTests(unittest.TestCase):
         self.assertEqual(actual_services, expected_nodes)
         self.assertEqual(len(result["services"]), len(expected_nodes))
 
+    def test_generate_images(self) -> None:
+        """Test that Docker images are generated correctly from model data."""
+        model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
+        model = self.loader.load(model_directory)
+        result = self.generator.generate(model)
+        
+        # Verify image names are correctly derived from the model
+        for node_name, node in model.compute.nodes.items():
+            with self.subTest(node=node_name):
+                if "deployment" in node:
+                    deployment_name = node["deployment"]
+                    deployment = model.application.deployments[deployment_name]
+                    
+                    # Build expected image name using same logic as generator
+                    vendor = deployment["product"]["vendor"].lower()
+                    edition = deployment["product"]["edition"]
+                    # Convert PascalCase to kebab-case
+                    import re
+                    edition = re.sub(r'([a-z])([A-Z])', r'\1-\2', edition).lower()
+                    version = deployment["product"]["version"]
+                    expected_image = f"{vendor}/{edition}:{version}"
+                    
+                    self.assertIn("image", result["services"][node_name])
+                    self.assertEqual(result["services"][node_name]["image"], expected_image)
+
 
 if __name__ == "__main__":
     unittest.main()

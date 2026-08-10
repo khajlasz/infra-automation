@@ -3,10 +3,34 @@
 from typing import Any, Dict
 
 from model.model import PlatformModel
+from generators.utils import to_kebab_case
 
 
 class DockerComposeGenerator:
     """Generate a Docker Compose specification from a platform model."""
+
+    def _build_image_name(self, deployment: Dict[str, Any]) -> str:
+        """
+        Build a Docker image name from a deployment dictionary.
+        
+        Args:
+            deployment: The deployment dictionary
+            
+        Returns:
+            A Docker image name in format <vendor>/<edition>:<version>
+        """
+        # Extract vendor, edition and version
+        vendor = deployment["product"]["vendor"]
+        edition = deployment["product"]["edition"]
+        version = deployment["product"]["version"]
+        
+        # Process vendor: convert to lowercase
+        vendor = vendor.lower()
+        
+        # Process edition: convert from PascalCase to kebab-case
+        edition = to_kebab_case(edition)
+        
+        return f"{vendor}/{edition}:{version}"
 
     def _generate_services(self, model: PlatformModel, compose_spec: Dict[str, Any]) -> None:
         """
@@ -16,9 +40,17 @@ class DockerComposeGenerator:
             model: The loaded platform model
             compose_spec: The Docker Compose specification dictionary to update
         """
-        for node_name in model.compute.nodes:
-            # Add the node as a service with minimal configuration
-            compose_spec["services"][node_name] = {}
+        services = compose_spec["services"]
+        
+        for node_name, node in model.compute.nodes.items():
+            # Add the node as a service
+            services[node_name] = {}
+            service = services[node_name]
+            
+            # Generate the image from the deployment
+            deployment_name = node["deployment"]
+            deployment = model.application.deployments[deployment_name]
+            service["image"] = self._build_image_name(deployment)
 
     def generate(self, model: PlatformModel) -> Dict[str, Any]:
         """
