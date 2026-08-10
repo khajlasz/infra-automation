@@ -69,6 +69,18 @@ class DockerComposeGeneratorTests(unittest.TestCase):
                     self.assertIn("image", result["services"][node_name])
                     self.assertEqual(result["services"][node_name]["image"], expected_image)
 
+    def test_generate_hostnames(self) -> None:
+        """Test that Docker hostnames are generated correctly from compute node names."""
+        model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
+        model = self.loader.load(model_directory)
+        result = self.generator.generate(model)
+        
+        # Verify that each service has a hostname equal to its node name
+        for node_name, node in model.compute.nodes.items():
+            with self.subTest(node=node_name):
+                self.assertIn("hostname", result["services"][node_name])
+                self.assertEqual(result["services"][node_name]["hostname"], node_name)
+
 
 if __name__ == "__main__":
     unittest.main()

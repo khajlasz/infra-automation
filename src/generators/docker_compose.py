@@ -51,6 +51,9 @@ class DockerComposeGenerator:
             deployment_name = node["deployment"]
             deployment = model.application.deployments[deployment_name]
             service["image"] = self._build_image_name(deployment)
+            
+            # Set the hostname to the node name
+            service["hostname"] = node_name
 
     def generate(self, model: PlatformModel) -> Dict[str, Any]:
         """
