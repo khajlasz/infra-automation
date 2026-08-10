@@ -521,3 +521,306 @@ Remove test_generate_handles_empty_nodes().
 Instead, update the out-dialer test to derive the expected service names directly from model.compute.nodes rather than hardcoding them.
 
 This keeps the tests focused on the architectural rule that every compute node becomes a Docker Compose service and avoids mutating the loaded PlatformModel into an artificial state.
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+You are implementing the next milestone of the Docker Compose generator.
+
+The existing generator already produces:
+
+services:
+    <service-name>:
+
+and has dedicated unit tests.
+
+Do not refactor existing code.
+
+Do not introduce new abstractions.
+
+## Objective
+
+Extend the generator to produce Docker image names.
+
+Example:
+
+services:
+
+  portal:
+    image: out-dialer/portal:0.1
+
+## Architecture
+
+The generator consumes the already loaded PlatformModel.
+
+Never parse YAML directly.
+
+The generator must resolve the model relationships:
+
+compute node
+    ↓
+deployment
+    ↓
+product
+    ↓
+vendor
+edition
+version
+
+The Docker image format is:
+
+<vendor>/<edition>:<version>
+
+Rules:
+
+- vendor is lowercase
+- edition is converted from PascalCase to kebab-case
+- version is copied unchanged
+
+Example:
+
+vendor:
+    Out-Dialer
+
+edition:
+    CampaignManager
+
+version:
+    0.1
+
+becomes
+
+out-dialer/campaign-manager:0.1
+
+## Scope
+
+Only implement image generation.
+
+Do not implement:
+
+- hostname
+- networks
+- ports
+- volumes
+- YAML serialization
+- CLI integration
+
+## Tests
+
+Extend the existing Docker Compose generator tests.
+
+Add:
+
+test_generate_images()
+
+The test should verify that every generated image matches the Platform Model.
+
+Do not hardcode image strings when they can be derived from the model.
+
+## Validation
+
+Run the affected tests using
+
+.venv/bin/python -m pytest
+
+## Deliverables
+
+1. Explain the implementation.
+2. Modify the generator.
+3. Add the unit test.
+4. Run tests.
+5. Summarize the changes.
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+You are implementing the next milestone of the Docker Compose generator.
+
+The project follows a model-driven architecture:
+
+Platform Model
+    ↓
+Loader
+    ↓
+Validated PlatformModel
+    ↓
+DockerComposeGenerator
+    ↓
+Python dictionary
+    ↓
+(YAML serialization will be implemented later)
+
+The generator consumes the already loaded PlatformModel.
+It never parses YAML directly.
+
+------------------------------------------------------------------------
+Current implementation
+------------------------------------------------------------------------
+
+The generator already produces:
+
+services:
+    portal:
+    campaign:
+    call_simulator:
+    database:
+
+and dedicated unit tests already exist.
+
+------------------------------------------------------------------------
+Objective
+------------------------------------------------------------------------
+
+Implement Docker image generation.
+
+Each service shall contain:
+
+image:
+
+Example:
+
+services:
+
+  portal:
+    image: out-dialer/portal:0.1
+
+------------------------------------------------------------------------
+Model traversal
+------------------------------------------------------------------------
+
+Resolve the image by traversing:
+
+compute node
+    ↓
+deployment
+    ↓
+product
+    ↓
+vendor
+edition
+version
+
+The image format is:
+
+<vendor>/<edition>:<version>
+
+Rules:
+
+vendor
+    convert to lowercase
+
+edition
+    convert from PascalCase to kebab-case
+
+version
+    unchanged
+
+Example
+
+vendor:
+    Out-Dialer
+
+edition:
+    CampaignManager
+
+version:
+    0.1
+
+becomes
+
+out-dialer/campaign-manager:0.1
+
+------------------------------------------------------------------------
+Required refactoring
+------------------------------------------------------------------------
+
+Do NOT keep the current helper:
+
+_generate_image(deployment_name, model)
+
+Instead:
+
+1.
+
+Rename it to
+
+_build_image_name(deployment)
+
+The helper should receive the deployment dictionary directly.
+
+The helper must not know where deployments are stored.
+
+It receives one deployment and returns one image string.
+
+Single responsibility.
+
+2.
+
+Extract the PascalCase → kebab-case conversion into
+
+src/generators/utils.py
+
+Implement
+
+to_kebab_case(text: str) -> str
+
+using the existing regular expression.
+
+The Docker Compose generator must call this helper.
+
+Do not duplicate the regex inside generators.
+
+------------------------------------------------------------------------
+Scope
+------------------------------------------------------------------------
+
+Implement ONLY:
+
+- image generation
+- helper refactoring
+- generators/utils.py
+
+Do NOT implement:
+
+- hostname
+- container_name
+- networks
+- ports
+- volumes
+- YAML serialization
+- CLI integration
+
+------------------------------------------------------------------------
+Tests
+------------------------------------------------------------------------
+
+Extend the existing Docker Compose generator tests.
+
+Add:
+
+test_generate_images()
+
+The expected image values should be derived from the loaded Platform Model wherever practical.
+
+Avoid unnecessary hardcoded values.
+
+------------------------------------------------------------------------
+Validation
+------------------------------------------------------------------------
+
+Run the relevant tests using the project virtual environment.
+
+Always use:
+
+.venv/bin/python
+
+Never use the system Python.
+
+------------------------------------------------------------------------
+Deliverables
+------------------------------------------------------------------------
+
+1. Explain the implementation approach.
+2. Implement the changes.
+3. Run the relevant tests.
+4. Summarize the changes.
+
+Do not create a commit.
+When implementing helper functions, prefer making them generic enough to be reused by future generators, but do not introduce abstractions that are not required by the current milestone.

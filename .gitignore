@@ -32,3 +32,5 @@ htmlcov/
 *.egg-info/
 
 observability/logs/*.log
+
+tmp/*
