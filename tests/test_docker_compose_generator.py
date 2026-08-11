@@ -101,6 +101,29 @@ class DockerComposeGeneratorTests(unittest.TestCase):
                 actual_networks = set(result["services"][node_name]["networks"].keys())
                 self.assertEqual(actual_networks, expected_node_networks)
 
+    def test_generate_ports(self) -> None:
+        """Test that Docker Compose ports are generated from application endpoints."""
+        model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
+        model = self.loader.load(model_directory)
+        result = self.generator.generate(model)
+        
+        # Define expected ports based on the model
+        expected_ports = {
+            "portal": ["8443:8443", "8444:8444", "9090:9090"],  # Portal + Authentication apps
+            "campaign": ["8080:8080", "9090:9090"],  # CampaignManager has rest and metrics endpoints  
+            "call_simulator": ["8081:8081", "9090:9090"],  # CallSimulator has rest and metrics endpoints
+            "database": ["5432:5432"]  # PostgreSQL has sql endpoint
+        }
+        
+        for node_name, expected_node_ports in expected_ports.items():
+            with self.subTest(node=node_name):
+                if expected_node_ports:  # Only check services that have ports
+                    self.assertIn("ports", result["services"][node_name])
+                    actual_ports = result["services"][node_name]["ports"]
+                    self.assertEqual(sorted(actual_ports), sorted(expected_node_ports))
+                else:  # Services without ports should not have ports key
+                    self.assertNotIn("ports", result["services"][node_name])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1118,3 +1118,172 @@ No functional changes.
 Run the existing tests.
 
 Do not modify any other code.
+
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+You are implementing the next milestone of the Docker Compose generator.
+
+The generator already produces:
+
+services:
+    <service>:
+        image:
+        hostname:
+        networks:
+
+The implementation has dedicated unit tests.
+
+Do not refactor existing code.
+
+Do not introduce new abstractions.
+
+------------------------------------------------------------------------
+Objective
+------------------------------------------------------------------------
+
+Generate Docker Compose published ports.
+
+Example:
+
+services:
+
+  portal:
+
+    ports:
+      - "8443:8443"
+
+------------------------------------------------------------------------
+Architecture
+------------------------------------------------------------------------
+
+The deployment has already been resolved inside _generate_services().
+
+Reuse the existing deployment variable.
+
+Do not perform another deployment lookup.
+
+Ports are derived from:
+
+deployment
+
+↓
+
+applications
+
+↓
+
+application definitions
+
+↓
+
+endpoints
+
+↓
+
+Docker Compose ports
+
+------------------------------------------------------------------------
+Rules
+------------------------------------------------------------------------
+
+For every application referenced by the deployment:
+
+- resolve the application definition
+- iterate over all endpoints
+- generate
+
+    "<port>:<port>"
+
+Example
+
+endpoints:
+
+    https:
+        port: 8443
+
+↓
+
+"8443:8443"
+
+Metrics endpoints are handled exactly the same way.
+
+Do not distinguish endpoint types.
+
+------------------------------------------------------------------------
+Return type
+------------------------------------------------------------------------
+
+_build_ports(...) shall return
+
+list[str]
+
+Example
+
+[
+    "8443:8443",
+    "9090:9090"
+]
+
+The helper returns the final Docker Compose representation.
+
+------------------------------------------------------------------------
+Implementation
+------------------------------------------------------------------------
+
+Introduce
+
+_build_ports(deployment, model)
+
+Inside _generate_services()
+
+service["ports"] = self._build_ports(deployment, model)
+
+------------------------------------------------------------------------
+Scope
+------------------------------------------------------------------------
+
+Implement ONLY
+
+- ports
+
+Do NOT implement
+
+- top-level networks
+- volumes
+- YAML serialization
+- CLI integration
+
+------------------------------------------------------------------------
+Tests
+------------------------------------------------------------------------
+
+Add
+
+test_generate_ports()
+
+Derive the expected ports from the loaded Platform Model.
+
+Avoid unnecessary hardcoded values.
+
+------------------------------------------------------------------------
+Validation
+------------------------------------------------------------------------
+
+Run the relevant tests using
+
+.venv/bin/python -m pytest
+
+Always use the project virtual environment.
+
+------------------------------------------------------------------------
+Deliverables
+
+1. Explain the implementation.
+2. Implement it.
+3. Run tests.
+4. Summarize the changes.
+
+Do not create a commit.
+
+Remove the defensive checks from _build_ports(), iterate directly over app_definition["endpoints"].values(), remove the unused endpoint_name variable, and rely on the validated Platform Model. No functional changes.
