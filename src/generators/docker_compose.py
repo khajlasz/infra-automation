@@ -52,6 +52,33 @@ class DockerComposeGenerator:
         
         return networks
 
+    def _build_ports(
+        self,
+        deployment: Dict[str, Any],
+        model: PlatformModel,
+    ) -> list[str]:
+        """
+        Build Docker Compose ports list from application endpoints.
+        
+        Args:
+            deployment: The deployment dictionary
+            model: The loaded platform model
+            
+        Returns:
+            A list of port mappings in the format ["<port>:<port>", ...]
+        """
+        ports = set()
+
+        for app_ref in deployment["applications"]:
+            app_definition = model.application.applications[
+                app_ref["application"]
+            ]
+
+            for endpoint in app_definition["endpoints"].values():
+                ports.add(f'{endpoint["port"]}:{endpoint["port"]}')
+
+        return sorted(ports)
+
     def _generate_services(self, model: PlatformModel, compose_spec: Dict[str, Any]) -> None:
         """
         Generate service entries for compute nodes.
@@ -77,6 +104,11 @@ class DockerComposeGenerator:
             
             # Add networks from interfaces
             service["networks"] = self._build_networks(node)
+            
+            # Add ports from application endpoints
+            ports = self._build_ports(deployment, model)
+            if ports:
+                service["ports"] = ports
 
     def generate(self, model: PlatformModel) -> Dict[str, Any]:
         """
