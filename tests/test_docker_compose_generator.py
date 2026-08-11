@@ -124,6 +124,81 @@ class DockerComposeGeneratorTests(unittest.TestCase):
                 else:  # Services without ports should not have ports key
                     self.assertNotIn("ports", result["services"][node_name])
 
+    def test_serialize_returns_valid_yaml(self) -> None:
+        """Test that serialize() returns valid YAML starting with services:."""
+        model = self.loader.load(self.model_directory)
+        compose_spec = self.generator.generate(model)
+        yaml_output = self.generator.serialize(compose_spec)
+        
+        # Should start with "services:"
+        self.assertTrue(yaml_output.startswith("services:"), "YAML should start with 'services:'")
+
+    def test_serialize_includes_services_section(self) -> None:
+        """Test that serialized output includes services section."""
+        model = self.loader.load(self.model_directory)
+        compose_spec = self.generator.generate(model)
+        yaml_output = self.generator.serialize(compose_spec)
+        
+        # Should contain "services:" 
+        self.assertIn("services:", yaml_output)
+
+    def test_serialize_includes_expected_service_names(self) -> None:
+        """Test that serialized output contains expected service names."""
+        model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
+        model = self.loader.load(model_directory)
+        compose_spec = self.generator.generate(model)
+        yaml_output = self.generator.serialize(compose_spec)
+        
+        # Should contain all expected node names from the model
+        expected_services = {"portal", "campaign", "call_simulator", "database"}
+        for service in expected_services:
+            self.assertIn(f"{service}:", yaml_output)
+
+    def test_serialize_includes_image_hostname_networks_and_ports(self) -> None:
+        """Test that serialized output contains image, hostname, networks and ports."""
+        model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
+        model = self.loader.load(model_directory)
+        compose_spec = self.generator.generate(model)
+        yaml_output = self.generator.serialize(compose_spec)
+        
+        # Check that the output contains various expected elements
+        self.assertIn("image:", yaml_output)
+        self.assertIn("hostname:", yaml_output)
+        self.assertIn("networks:", yaml_output)
+        self.assertIn("ports:", yaml_output)
+
+    def test_generate_networks_section_exists(self) -> None:
+        """Test that the top-level networks section is generated."""
+        model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
+        model = self.loader.load(model_directory)
+        result = self.generator.generate(model)
+        
+        # Should have a networks section at the top level
+        self.assertIn("networks", result)
+        self.assertIsInstance(result["networks"], dict)
+
+    def test_generate_networks_from_model(self) -> None:
+        """Test that all platform model networks appear in the Docker Compose networks."""
+        model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
+        model = self.loader.load(model_directory)
+        result = self.generator.generate(model)
+        
+        # Get expected network names from the model
+        expected_networks = set(model.network.networks.keys())
+        
+        # Get actual network names from generated spec
+        actual_networks = set(result["networks"].keys())
+        
+        # Should have exactly the same networks
+        self.assertEqual(actual_networks, expected_networks)
+        self.assertEqual(len(actual_networks), len(expected_networks))
+        
+        # Each network should be empty (no extra attributes)
+        for network_name in actual_networks:
+            self.assertIn(network_name, result["networks"])
+            self.assertIsInstance(result["networks"][network_name], dict)
+            self.assertEqual(len(result["networks"][network_name]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

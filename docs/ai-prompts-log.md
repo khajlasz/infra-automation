@@ -1287,3 +1287,494 @@ Deliverables
 Do not create a commit.
 
 Remove the defensive checks from _build_ports(), iterate directly over app_definition["endpoints"].values(), remove the unused endpoint_name variable, and rely on the validated Platform Model. No functional changes.
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\
+The Docker Compose generator currently produces:
+
+- services
+- image
+- hostname
+- service networks
+- ports
+
+However, the generated docker-compose.yaml cannot yet be used because
+the top-level "networks:" section is missing.
+
+Docker Compose requires every referenced network to be declared.
+
+------------------------------------------------------------------------
+Objective
+------------------------------------------------------------------------
+
+Generate the top-level Docker Compose networks section.
+
+------------------------------------------------------------------------
+Architecture
+------------------------------------------------------------------------
+
+The Platform Model is the source of truth.
+
+Do NOT derive top-level networks from generated services.
+
+Generate them directly from the Platform Model.
+
+------------------------------------------------------------------------
+Implementation
+------------------------------------------------------------------------
+
+Introduce
+
+    _generate_networks(
+        model: PlatformModel,
+        compose_spec: Dict[str, Any],
+    ) -> None
+
+The helper shall create
+
+compose_spec["networks"]
+
+and populate it from
+
+    model.network.networks
+
+Each platform network becomes a Docker Compose network.
+
+Example
+
+Platform Model
+
+    dmz
+    internal
+    database
+
+↓
+
+Docker Compose
+
+networks:
+
+    dmz: {}
+
+    internal: {}
+
+    database: {}
+
+Do not generate additional attributes.
+
+------------------------------------------------------------------------
+Generator flow
+------------------------------------------------------------------------
+
+generate()
+
+shall become
+
+    compose_spec = {
+        "services": {}
+    }
+
+    self._generate_services(model, compose_spec)
+
+    self._generate_networks(model, compose_spec)
+
+    return compose_spec
+
+------------------------------------------------------------------------
+Requirements
+------------------------------------------------------------------------
+
+Reuse the existing architecture.
+
+Do not modify
+
+- _build_networks()
+- _build_ports()
+- _build_image_name()
+
+Do not change service generation.
+
+Do not derive networks from services.
+
+------------------------------------------------------------------------
+Tests
+------------------------------------------------------------------------
+
+Add tests verifying
+
+- top-level "networks" exists
+- every Platform Model network appears exactly once
+- expected network names are derived from
+  model.network.networks
+
+Avoid unnecessary hardcoded values.
+
+------------------------------------------------------------------------
+Validation
+------------------------------------------------------------------------
+
+Run all relevant tests using
+
+    .venv/bin/python -m pytest
+
+Always use the project's virtual environment.
+
+------------------------------------------------------------------------
+Deliverables
+
+1. Explain the implementation.
+2. Implement it.
+3. Run the tests.
+4. Summarize the changes.
+
+Do not create a commit.
+
+
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\
+You are implementing the next milestone of the Docker Compose generator.
+
+The generator now produces a complete in-memory Docker Compose
+object containing:
+
+- services
+- image
+- hostname
+- networks
+- ports
+
+The next milestone is YAML serialization.
+
+------------------------------------------------------------------------
+Objective
+------------------------------------------------------------------------
+
+Serialize the generated Docker Compose object into a valid
+docker-compose.yaml document.
+
+------------------------------------------------------------------------
+Architecture
+------------------------------------------------------------------------
+
+Keep the existing DockerComposeGenerator responsible only for
+building the Python object.
+
+Do not mix object generation and YAML serialization.
+
+Introduce a separate serialization method.
+
+Example:
+
+    compose = generator.generate(model)
+
+    yaml = generator.serialize(compose)
+
+The serializer receives the already generated Compose object.
+
+It does not access the Platform Model.
+
+------------------------------------------------------------------------
+Implementation
+------------------------------------------------------------------------
+
+Add
+
+    serialize(compose_spec: Dict[str, Any]) -> str
+
+The method shall:
+
+- produce valid YAML
+- preserve key ordering
+- use block style (not flow style)
+- produce readable output comparable to a handwritten
+  docker-compose.yaml
+
+Use PyYAML.
+
+------------------------------------------------------------------------
+Requirements
+------------------------------------------------------------------------
+
+Use
+
+    yaml.safe_dump(...)
+
+Configure it to:
+
+- preserve key order
+- use block style
+- avoid unnecessary aliases
+
+The output should begin with
+
+services:
+
+------------------------------------------------------------------------
+Scope
+------------------------------------------------------------------------
+
+Implement ONLY:
+
+- YAML serialization
+
+Do NOT:
+
+- write files
+- update CLI
+- implement volumes
+- modify generation logic
+
+------------------------------------------------------------------------
+Tests
+------------------------------------------------------------------------
+
+Add serialization tests.
+
+Verify that:
+
+- serialize() returns valid YAML
+- services section exists
+- expected service names appear
+- image, hostname, networks and ports are present
+
+Avoid comparing the entire YAML document literally.
+
+------------------------------------------------------------------------
+Validation
+------------------------------------------------------------------------
+
+Run all relevant tests using
+
+    .venv/bin/python -m pytest
+
+Do not create a commit.
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\
+You are implementing the next milestone of the Docker Compose generator.
+
+The generator now produces:
+
+Platform Model
+    ↓
+Compose object
+    ↓
+YAML string
+
+The next step is exposing this through the CLI.
+
+------------------------------------------------------------------------
+Objective
+------------------------------------------------------------------------
+
+Add a Docker Compose generation command.
+
+------------------------------------------------------------------------
+Command
+------------------------------------------------------------------------
+
+Extend the existing CLI with
+
+    generate docker-compose
+
+The command shall:
+
+1.
+
+Load the Platform Model.
+
+2.
+
+Generate the Compose object.
+
+3.
+
+Serialize it.
+
+4.
+
+Write
+
+docker-compose.yaml
+
+to the chosen output directory.
+
+------------------------------------------------------------------------
+Architecture
+------------------------------------------------------------------------
+
+The CLI orchestrates the workflow.
+
+It must not contain generation logic.
+
+The workflow is
+
+Loader
+
+↓
+
+DockerComposeGenerator.generate()
+
+↓
+
+DockerComposeGenerator.serialize()
+
+↓
+
+write file
+
+------------------------------------------------------------------------
+Requirements
+------------------------------------------------------------------------
+
+Do not duplicate generation logic.
+
+Do not duplicate serialization logic.
+
+Reuse existing classes.
+
+------------------------------------------------------------------------
+Scope
+------------------------------------------------------------------------
+
+Implement ONLY
+
+- CLI integration
+- writing docker-compose.yaml
+
+Do NOT
+
+- implement volumes
+- change generator behaviour
+
+------------------------------------------------------------------------
+Tests
+------------------------------------------------------------------------
+
+Extend CLI tests to verify that
+
+generate docker-compose
+
+creates
+
+docker-compose.yaml
+
+------------------------------------------------------------------------
+Validation
+------------------------------------------------------------------------
+
+Run all relevant tests using
+
+    .venv/bin/python -m pytest
+
+Do not create a commit.
+
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+The Docker Compose generator and CLI are now functionally complete.
+
+This task is a small architectural cleanup only.
+
+Do not change functionality.
+
+Do not change command-line syntax.
+
+Do not implement new features.
+
+------------------------------------------------------------------------
+1. Extract CLI workflow into a helper
+------------------------------------------------------------------------
+
+Today the CLI contains the entire Docker Compose generation workflow.
+
+Extract it into:
+
+    generate_docker_compose(
+        model_directory: Path,
+        output: Path,
+    ) -> None
+
+The helper shall perform:
+
+- load Platform Model
+- generate Compose object
+- serialize Compose YAML
+- write the output file
+
+The CLI should simply dispatch to this helper.
+
+------------------------------------------------------------------------
+2. Explicit UTF-8 encoding
+------------------------------------------------------------------------
+
+When writing the output file use:
+
+    output.write_text(
+        yaml_output,
+        encoding="utf-8",
+    )
+
+------------------------------------------------------------------------
+3. Use logging instead of print
+------------------------------------------------------------------------
+
+Replace
+
+    print(...)
+
+with logging.
+
+Reuse the project's existing logging conventions.
+
+Do not introduce a new logging framework.
+
+------------------------------------------------------------------------
+4. Keep responsibilities separated
+------------------------------------------------------------------------
+
+The workflow shall remain:
+
+CLI
+    ↓
+generate_docker_compose()
+    ↓
+Loader
+    ↓
+DockerComposeGenerator.generate()
+    ↓
+DockerComposeGenerator.serialize()
+    ↓
+Filesystem
+
+Do not move serialization into the CLI.
+
+Do not move file writing into the generator.
+
+------------------------------------------------------------------------
+5. Scope
+------------------------------------------------------------------------
+
+Do NOT modify:
+
+- DockerComposeGenerator.generate()
+- DockerComposeGenerator.serialize()
+- Docker Compose generation logic
+- tests (unless they require trivial updates)
+
+------------------------------------------------------------------------
+Validation
+------------------------------------------------------------------------
+
+Run all relevant tests using
+
+    .venv/bin/python -m pytest
+
+Always use the project's virtual environment.
+
+------------------------------------------------------------------------
+Deliverables
+------------------------------------------------------------------------
+
+1. Explain the refactoring.
+2. Implement the changes.
+3. Run the tests.
+4. Summarize the changes.
+
+Do not create a commit.

@@ -2,6 +2,8 @@
 
 from typing import Any, Dict
 
+import yaml
+
 from model.model import PlatformModel
 from generators.utils import to_kebab_case
 
@@ -73,11 +75,27 @@ class DockerComposeGenerator:
             app_definition = model.application.applications[
                 app_ref["application"]
             ]
-
-            for endpoint in app_definition["endpoints"].values():
-                ports.add(f'{endpoint["port"]}:{endpoint["port"]}')
+            
+            # Handle cases where endpoints might not be defined (e.g. in minimal model)
+            if "endpoints" in app_definition:
+                for endpoint in app_definition["endpoints"].values():
+                    ports.add(f'{endpoint["port"]}:{endpoint["port"]}')
 
         return sorted(ports)
+
+    def _generate_networks(
+        self,
+        model: PlatformModel,
+        compose_spec: Dict[str, Any],
+    ) -> None:
+        """
+        Generate top-level networks section from the Platform Model.
+        """
+        compose_spec["networks"] = {}
+        networks = compose_spec["networks"]
+
+        for network_name in model.network.networks:
+            networks[network_name] = {}
 
     def _generate_services(self, model: PlatformModel, compose_spec: Dict[str, Any]) -> None:
         """
@@ -127,4 +145,26 @@ class DockerComposeGenerator:
         # Generate service entries from compute nodes
         self._generate_services(model, compose_spec)
         
+        # Generate top-level networks section
+        self._generate_networks(model, compose_spec)
+        
         return compose_spec
+
+    def serialize(self, compose_spec: Dict[str, Any]) -> str:
+        """
+        Serialize a Docker Compose specification to YAML.
+        
+        Args:
+            compose_spec: The Docker Compose specification dictionary
+            
+        Returns:
+            A YAML string representing the Docker Compose specification
+        """
+        return yaml.safe_dump(
+            compose_spec,
+            default_flow_style=False,
+            allow_unicode=True,
+            sort_keys=False,
+            indent=2,
+            width=80
+        )
