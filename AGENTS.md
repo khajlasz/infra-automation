@@ -5,26 +5,42 @@
 This document defines the engineering principles for contributors and AI agents
 working on this repository.
 
-The project is a declarative platform modelling framework. The platform model is
-the primary source of truth. Infrastructure automation, validation and
-deployment artifacts are generated from this model.
+The project is a declarative, model-driven infrastructure automation framework.
+The Platform Model is the primary source of truth. Validation and deployment
+artifacts are derived from that model.
 
 ---
 
 # Project Goals
 
 The objective is to build a provider-independent framework capable of modelling
-distributed platforms and generating deployment artifacts.
+distributed platforms and projecting the same logical intent into multiple
+deployment and integration backends.
 
-Current generators will include:
+Current implementation:
 
-- Terraform
-- Ansible
-- Documentation
-- Validation
+- Platform Model loader
+- schema validation
+- semantic/reference validation
+- Docker Compose generator
+- Docker Compose YAML serialization
+- CLI validation and generation workflow
 
-The first reference implementation models a telecom platform inspired by
-BroadWorks deployments.
+Current roadmap:
+
+- Terraform / MikroTik RouterOS backend
+- NetBox inventory and IPAM integration
+- Terraform / AWS backend
+- hybrid on-prem/cloud scenarios
+
+Ansible is not an active backend for the current container-based reference
+implementation. It may be introduced later if a deployment target requires
+host or application configuration on virtual machines or bare metal.
+
+The primary reference platform is Out-Dialer, a simplified distributed Voice
+Campaign Platform inspired by enterprise telecom deployment patterns. The
+repository also retains telecom and minimal reference models for modelling and
+validation purposes.
 
 ---
 
@@ -47,11 +63,11 @@ changing the implementation.
 
 ## The Model is the Product
 
-The platform model is the primary source of truth.
+The Platform Model is the primary source of truth.
 
-Python, Terraform, Ansible and documentation are generated from the model.
+Deployment and integration backends consume the validated model.
 
-Never optimise the model for a specific implementation technology.
+Never optimise the logical model for a specific implementation technology.
 
 ---
 
@@ -59,9 +75,9 @@ Never optimise the model for a specific implementation technology.
 
 Describe **what** the platform is.
 
-Do not model **how** it is deployed.
+Do not encode **how** a particular technology deploys it in the Platform Model.
 
-Deployment logic belongs in generators.
+Technology-specific behaviour belongs in generators and integrations.
 
 ---
 
@@ -69,19 +85,20 @@ Deployment logic belongs in generators.
 
 Avoid duplicated information.
 
-If multiple objects share identical data, create a reusable definition.
+If multiple objects share identical data, create a reusable definition when
+there is a genuine domain reason to do so.
 
 Use references instead of copying values.
 
 Example:
 
-Good
+Good:
 
 ```yaml
 computeProfile: medium
 ```
 
-Bad
+Bad:
 
 ```yaml
 cpu: 4
@@ -94,16 +111,19 @@ on every node.
 
 ## Provider Independence
 
-The model must remain independent from:
+The Platform Model must remain independent from technologies such as:
 
 - AWS
 - Azure
 - GCP
 - VMware
+- Docker Compose
+- Kubernetes
 - Terraform
+- RouterOS
 - Ansible
 
-Provider-specific logic belongs in generators.
+Provider-specific and runtime-specific logic belongs in backends.
 
 ---
 
@@ -114,10 +134,10 @@ Objects reference one another using stable identifiers.
 Examples:
 
 ```yaml
-site: warsaw
-network: signalling
-deployment: bw-adp-webex
-computeProfile: medium
+site: lab
+network: internal
+deployment: portal
+computeProfile: small
 ```
 
 Cross-file references are validated by the framework rather than the schema.
@@ -131,25 +151,29 @@ Model refactoring must preserve semantics.
 When modifying the model:
 
 - never remove information unless explicitly instructed,
-- preserve object identifiers,
+- preserve object identifiers where possible,
 - preserve relationships,
 - update references where required,
 - perform the smallest possible change.
 
-Before deleting any model file, verify that all information has been migrated.
+Before deleting any model file, verify that all required information has been
+migrated.
 
 ---
 
 # Validation Philosophy
 
-Validation occurs in multiple stages.
+Validation occurs in multiple stages:
 
 1. YAML syntax
 2. Yamale schema validation
-3. Cross-reference validation
-4. Business rule validation
+3. semantic/reference validation
+4. future business-rule validation where justified
 
 Do not attempt to implement cross-reference validation in Yamale.
+
+Generators should consume an already validated Platform Model and should not
+reimplement validation rules.
 
 ---
 
@@ -160,146 +184,193 @@ When adding new concepts:
 - prefer extending existing objects,
 - avoid introducing new object types without clear justification,
 - avoid speculative abstractions,
-- favour simplicity.
+- favour simplicity,
+- add deployment-specific information to a backend rather than the logical
+  model unless it represents genuine platform intent.
 
 Every object should answer a unique engineering question.
 
-If an object exists only for documentation and is not consumed by generators or
-validators, reconsider whether it belongs in the model.
+If an object exists only for documentation and is not consumed by generators,
+validators or integrations, reconsider whether it belongs in the model.
+
+---
+
+# Deployment Backends
+
+A backend projects the validated Platform Model into a target technology.
+
+Current backend:
+
+```text
+Platform Model -> Docker Compose
+```
+
+Next backend:
+
+```text
+Platform Model -> Terraform -> MikroTik RouterOS
+```
+
+Future backends may include AWS or Kubernetes.
+
+A new backend should reuse existing logical concepts wherever possible. Model
+changes should represent missing domain concepts rather than requirements of a
+single technology.
+
+---
+
+# Infrastructure Prerequisites
+
+The framework does not need to provision the complete laboratory or development
+workstation.
+
+For the current local reference lab, the following are prerequisites:
+
+- UTM
+- Ubuntu Docker host VM
+- MikroTik CHR VM
+- Docker runtime
+- Terraform tooling
+- network reachability from the control workstation
+
+Lab construction belongs to the separate `dev-environment` project.
+
+This separation mirrors real environments where compute and network platforms
+exist before application/platform automation is applied.
+
+---
+
+# NetBox
+
+NetBox remains a future integration for inventory and IPAM rather than simply
+another deployment generator.
+
+Potential responsibilities include:
+
+- sites
+- devices and VMs
+- interfaces
+- prefixes
+- IP addresses
+- topology metadata
+- hierarchical configuration context
+
+The ownership boundary between Platform Model intent and NetBox operational
+inventory should be decided through concrete use cases rather than assumed in
+advance.
 
 ---
 
 # Repository Structure
 
-```
+```text
+adr/
+docker/
 docs/
-    architecture.md
-    model.md
-    modelling-guidelines.md
-
-model/
-    telecom/
-        platform/
-        network/
-        compute/
-        application/
-
+models/
+├── minimal/
+├── out-dialer/
+└── telecom/
+observability/
 schema/
-    telecom/
-
 src/
-    loader/
-    validator/
-    generators/
+├── cli.py
+├── generators/
+├── loader/
+├── model/
+├── observability/
+└── validation/
+terraform/
+tests/
 ```
 
-The directory structure should remain consistent across models and schemas.
+The structure may evolve as new backends are implemented, but model, schema,
+validation and generator responsibilities should remain clearly separated.
 
 ---
 
 # Coding Principles
 
-Python should mirror the model.
+Python should mirror the framework responsibilities.
 
-Prefer:
+Prefer clear modules such as:
 
-```
+```text
 loader/
-validator/
+validation/
 generators/
 model/
 ```
 
-over generic utility modules.
+over generic abstractions without an immediate use case.
 
-Keep data classes simple.
+Keep data objects simple.
 
 Business logic belongs in validators and generators rather than model objects.
 
 ---
+
 ## Code Readability
 
 The repository serves two purposes:
 
 - implement the Infrastructure Automation Framework,
-- help the project owner learn and understand the implementation.
+- remain understandable to engineers reviewing or extending it.
 
 When introducing non-trivial Python language features or design patterns,
-prefer adding concise explanatory comments.
+prefer concise comments explaining **why** the construct is useful.
 
-Examples include:
+Avoid excessive comments on simple or self-explanatory code.
 
-- dataclasses
-- field(default_factory=...)
-- __getattr__()
-- __contains__()
-- __repr__()
-- decorators
-- context managers
-- pathlib idioms
-- type hints
-- generic programming
+Prefer readable and maintainable code over clever or highly condensed
+implementations.
 
-Comments should explain **why** a construct is used rather than merely
-describing what the code does.
-
-Example:
-
-```python
-# Each ModelDomain instance receives its own dictionary.
-# Using default_factory avoids sharing a mutable default between instances.
-data: dict[str, Any] = field(default_factory=dict)
-```
-
-Avoid excessive commenting of simple or self-explanatory code.
-Comments should improve maintainability and help a reader understand the
-design decisions behind the implementation.
-
-When implementing a new framework component, favour clear, educational code over
-clever or highly condensed implementations. Readability and maintainability are
-more important than minimising the number of lines of code.
 ---
-### Internal Model
+
+## Internal Model
 
 The internal Python object model is not required to mirror the YAML structure
 exactly.
 
-The loader may perform small, lossless transformations that improve the
-usability of the API.
+The loader may perform small, lossless transformations that improve the API.
 
-Examples:
+Examples include:
 
-- unwrap a top-level mapping when its single key matches the filename
-- normalise filenames by replacing '-' with '_'
+- unwrapping a top-level mapping when its single key matches the filename,
+- normalising filenames by replacing `-` with `_`.
 
-These transformations must never lose information or change the semantics of
-the model.
+These transformations must never lose information or change model semantics.
+
 ---
 
 # AI Agent Instructions
 
 When performing a task:
 
-1. Read the existing model before making changes.
+1. Read the relevant existing model and implementation first.
 2. Preserve architectural intent.
 3. Make only the requested modifications.
 4. Do not silently redesign the model.
 5. If a better design is identified, explain it separately.
 6. Preserve formatting and naming conventions.
 7. Prefer consistency over cleverness.
+8. Run or describe the relevant validation after changes.
 
 When refactoring:
 
 - preserve semantics,
-- preserve object identifiers,
+- preserve object identifiers where possible,
 - preserve references,
 - avoid data loss.
 
-If uncertain, stop and ask for clarification.
+If uncertainty affects architecture or data semantics, stop and ask for
+clarification.
+
+---
 
 ## Simplicity Before Abstraction
 
-Prefer the simplest implementation that satisfies the current requirements.
+Prefer the simplest implementation that satisfies current requirements.
 
 Do not introduce classes, extension points, interfaces or generic frameworks
 unless they provide immediate value.
@@ -310,8 +381,8 @@ When in doubt:
 - prefer explicit code over indirection,
 - introduce abstractions only after multiple concrete use cases emerge.
 
-The framework should evolve from working implementations rather than anticipated
-future requirements.
+The framework should evolve from working implementations rather than
+anticipated future requirements.
 
 ---
 
@@ -320,10 +391,14 @@ future requirements.
 A task is complete only if:
 
 - the model remains valid,
-- no information has been lost,
+- no required information has been lost,
 - references remain consistent,
-- documentation reflects the changes where necessary,
-- changes are ready to commit.
+- relevant tests pass,
+- generated artifacts remain deterministic where applicable,
+- documentation reflects architectural changes where necessary,
+- changes are ready to review and commit.
+
+---
 
 ## Architecture Ownership
 
@@ -332,5 +407,5 @@ Architectural decisions are made explicitly through discussion and review.
 Implementation tasks should not introduce new architectural concepts unless
 explicitly requested.
 
-If an implementation task reveals a potential improvement to the architecture,
-implement the requested solution first, then propose the improvement separately.
+If implementation reveals a potential architectural improvement, complete the
+requested solution first and propose the improvement separately.
