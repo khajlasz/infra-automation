@@ -245,7 +245,6 @@ src/
 ├── model/
 ├── observability/
 └── validation/
-terraform/
 tests/
 ```
 
