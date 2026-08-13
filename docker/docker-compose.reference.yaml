@@ -52,5 +52,34 @@ volumes:
 
 networks:
   dmz:
+    name: dmz-net
+    driver: macvlan
+    driver_opts:
+      parent: enp0s2
+    ipam:
+      config:
+        - subnet: 10.10.10.0/24
+          gateway: 10.10.10.1
+          ip_range: 10.10.10.128/28
+
   internal:
+    name: internal-net
+    driver: macvlan
+    driver_opts:
+      parent: enp0s3
+    ipam:
+      config:
+        - subnet: 10.10.20.0/24
+          gateway: 10.10.20.1
+          ip_range: 10.10.20.128/28
+
   database:
+    name: database-net
+    driver: macvlan
+    driver_opts:
+      parent: enp0s4
+    ipam:
+      config:
+        - subnet: 10.10.30.0/24
+          gateway: 10.10.30.1
+          ip_range: 10.10.30.128/28
