@@ -36,4 +36,4 @@ observability/logs/*.log
 tmp/*
 
 # Private local project data
-/private/
+/private
