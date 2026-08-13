@@ -4,19 +4,16 @@ networks:
     site: lab
     purpose: External client access
     subnet:
-      slot: 10
-      prefixLength: 24
+      cidr: 10.10.10.0/24
 
   internal:
     site: lab
     purpose: Internal platform communication
     subnet:
-      slot: 20
-      prefixLength: 24
+      cidr: 10.10.20.0/24
 
   database:
     site: lab
     purpose: Database communication
     subnet:
-      slot: 30
-      prefixLength: 24
+      cidr: 10.10.30.0/24

@@ -10,5 +10,4 @@ network:
 
 ---
 subnet:
-  slot: int()
-  prefixLength: int()
+  cidr: str()

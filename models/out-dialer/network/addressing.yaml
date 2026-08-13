@@ -1,2 +1,2 @@
 addressing:
-  ipv4Pool: str()
+  ipv4Pool: 10.10.0.0/16
