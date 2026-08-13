@@ -1,7 +1,14 @@
 networks: map(include('network'))
+
 ---
 network:
   description: str(required=False)
   zone: str(required=False)
   site: str(required=False)
   purpose: str(required=False)
+  subnet: include('subnet', required=False)
+
+---
+subnet:
+  slot: int()
+  prefixLength: int()
