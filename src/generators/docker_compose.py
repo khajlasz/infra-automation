@@ -5,6 +5,8 @@ from typing import Any, Dict
 import yaml
 
 from model.model import PlatformModel
+from realization.model import Realization
+from realization.resolver import resolve_network_ipam
 from generators.utils import to_kebab_case
 
 
@@ -87,15 +89,45 @@ class DockerComposeGenerator:
         self,
         model: PlatformModel,
         compose_spec: Dict[str, Any],
+        realization: Realization | None = None,
     ) -> None:
-        """
-        Generate top-level networks section from the Platform Model.
-        """
+        """Generate top-level Docker Compose networks."""
+
         compose_spec["networks"] = {}
         networks = compose_spec["networks"]
 
-        for network_name in model.network.networks:
-            networks[network_name] = {}
+        if realization is None:
+            for network_name in model.network.networks:
+                networks[network_name] = {}
+            return
+
+        driver = realization.docker["networkDriver"]
+        realized_networks = realization.docker["networks"]
+
+        for network_name, network in model.network.networks.items():
+            realization_network = realized_networks[network_name]
+
+            cidr = network["subnet"]["cidr"]
+            ipam_config = realization_network["ipam"]
+
+            resolved_ipam = resolve_network_ipam(
+                cidr=cidr,
+                offset=ipam_config["offset"],
+                prefix_length=ipam_config["prefixLength"],
+            )
+
+            networks[network_name] = {
+                "name": f"{network_name}-net",
+                "driver": driver,
+                "driver_opts": {
+                    "parent": realization_network["parent"],
+                },
+                "ipam": {
+                    "config": [
+                        resolved_ipam,
+                    ],
+                },
+            }
 
     def _generate_services(self, model: PlatformModel, compose_spec: Dict[str, Any]) -> None:
         """
@@ -128,12 +160,17 @@ class DockerComposeGenerator:
             if ports:
                 service["ports"] = ports
 
-    def generate(self, model: PlatformModel) -> Dict[str, Any]:
+    def generate(
+        self,
+        model: PlatformModel,
+        realization: Realization | None = None,
+    ) -> Dict[str, Any]:
         """
         Generate a Docker Compose specification from the platform model.
         
         Args:
             model: The loaded platform model
+            realization: The environment-specific deployment realization
             
         Returns:
             A Python dictionary representing a partial Docker Compose spec 
@@ -146,7 +183,7 @@ class DockerComposeGenerator:
         self._generate_services(model, compose_spec)
         
         # Generate top-level networks section
-        self._generate_networks(model, compose_spec)
+        self._generate_networks(model, compose_spec, realization)
         
         return compose_spec
 

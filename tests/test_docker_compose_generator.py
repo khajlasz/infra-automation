@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 import unittest
 
+from realization.loader import load_realization
+
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from generators.docker_compose import DockerComposeGenerator
@@ -199,6 +201,42 @@ class DockerComposeGeneratorTests(unittest.TestCase):
             self.assertIsInstance(result["networks"][network_name], dict)
             self.assertEqual(len(result["networks"][network_name]), 0)
 
+    def test_generate_networks_with_local_lab_realization(self) -> None:
+        model = Loader().load(Path("models/out-dialer"))
+        realization = load_realization(
+            Path("realizations/out-dialer/local-lab.yaml")
+        )
+
+        spec = DockerComposeGenerator().generate(model, realization)
+
+        assert spec["networks"]["dmz"]["driver"] == "macvlan"
+        assert spec["networks"]["dmz"]["name"] == "dmz-net"
+        assert spec["networks"]["dmz"]["driver_opts"]["parent"] == "enp0s2"
+
+        assert spec["networks"]["internal"]["driver_opts"]["parent"] == "enp0s3"
+        assert spec["networks"]["database"]["driver_opts"]["parent"] == "enp0s4"
+
+        assert spec["networks"]["dmz"]["ipam"] == {
+            "config": [
+                {
+                    "subnet": "10.10.10.0/24",
+                    "gateway": "10.10.10.1",
+                    "ip_range": "10.10.10.128/28",
+                }
+            ]
+        }
+
+        assert spec["networks"]["internal"]["ipam"]["config"][0] == {
+            "subnet": "10.10.20.0/24",
+            "gateway": "10.10.20.1",
+            "ip_range": "10.10.20.128/28",
+        }
+
+        assert spec["networks"]["database"]["ipam"]["config"][0] == {
+            "subnet": "10.10.30.0/24",
+            "gateway": "10.10.30.1",
+            "ip_range": "10.10.30.128/28",
+        }
 
 if __name__ == "__main__":
     unittest.main()
