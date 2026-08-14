@@ -1,0 +1,24 @@
+name: local-lab
+
+docker:
+  networkDriver: macvlan
+
+  networks:
+
+    dmz:
+      parent: enp0s2
+      ipam:
+        offset: 128
+        prefixLength: 28
+
+    internal:
+      parent: enp0s3
+      ipam:
+        offset: 128
+        prefixLength: 28
+
+    database:
+      parent: enp0s4
+      ipam:
+        offset: 128
+        prefixLength: 28

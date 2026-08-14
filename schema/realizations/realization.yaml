@@ -1,0 +1,17 @@
+name: str()
+docker: include('docker', required=False)
+
+---
+docker:
+  networkDriver: str(required=False)
+  networks: map(include('docker_network'), required=False)
+
+---
+docker_network:
+  parent: str()
+  ipam: include('ipam', required=False)
+
+---
+ipam:
+  offset: int()
+  prefixLength: int()

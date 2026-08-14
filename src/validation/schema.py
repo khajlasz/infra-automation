@@ -36,3 +36,11 @@ def validate_model_schema(model_directory: Path, schema_directory: Path) -> None
         validated_file_count += 1
 
     logger.info("Successfully validated %s model files", validated_file_count)
+
+def validate_realization_schema(
+    realization_path: Path,
+    schema_path: Path,
+) -> None:
+    schema = yamale.make_schema(str(schema_path))
+    data = yamale.make_data(str(realization_path))
+    yamale.validate(schema, data)
