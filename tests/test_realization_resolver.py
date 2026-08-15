@@ -1,4 +1,5 @@
 from realization.resolver import resolve_network_ipam
+from realization.resolver import resolve_network
 
 
 def test_resolve_network_ipam():
@@ -14,4 +15,13 @@ def test_resolve_network_ipam():
         "ip_range": "10.10.10.128/28",
     }
 
+
+def test_resolve_network():
+    result = resolve_network("10.10.10.0/24")
+
+    assert result == {
+        "subnet": "10.10.10.0/24",
+        "gateway": "10.10.10.1",
+        "gateway_cidr": "10.10.10.1/24",
+    }
     
