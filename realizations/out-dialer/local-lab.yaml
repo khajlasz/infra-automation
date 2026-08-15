@@ -22,3 +22,12 @@ docker:
       ipam:
         offset: 128
         prefixLength: 28
+
+routeros:
+  interfaces:
+    dmz:
+      physicalInterface: ether1
+    internal:
+      physicalInterface: ether2
+    database:
+      physicalInterface: ether3

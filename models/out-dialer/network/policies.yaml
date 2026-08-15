@@ -1,5 +1,13 @@
-
 policies:
 
-  default:
-    description: Default telecom security policy
+  allow-dmz-to-internal:
+    description: Allow DMZ traffic to Internal network
+    from: dmz
+    to: internal
+    action: allow
+
+  allow-internal-to-database:
+    description: Allow Internal traffic to Database network
+    from: internal
+    to: database
+    action: allow

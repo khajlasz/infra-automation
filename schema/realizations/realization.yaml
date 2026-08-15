@@ -1,5 +1,6 @@
 name: str()
 docker: include('docker', required=False)
+routeros: include('routeros', required=False)
 
 ---
 docker:
@@ -15,3 +16,11 @@ docker_network:
 ipam:
   offset: int()
   prefixLength: int()
+
+---
+routeros:
+  interfaces: map(include('routeros_interface'), required=False)
+
+---
+routeros_interface:
+  physicalInterface: str()
