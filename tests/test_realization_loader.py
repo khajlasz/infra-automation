@@ -19,3 +19,7 @@ def test_load_local_lab_realization():
 
     assert networks["dmz"]["ipam"]["offset"] == 128
     assert networks["dmz"]["ipam"]["prefixLength"] == 28
+
+    assert realization.routeros["interfaces"]["dmz"]["physicalInterface"] == "ether1"
+    assert realization.routeros["interfaces"]["internal"]["physicalInterface"] == "ether2"
+    assert realization.routeros["interfaces"]["database"]["physicalInterface"] == "ether3"
