@@ -38,10 +38,12 @@ The central architectural principle is:
                             ▼
                  Validated Platform Model
                             │
+                 Deployment Realization
+                            │
               ┌─────────────┴─────────────┐
               │                           │
               ▼                           ▼
-     Docker Compose Generator     Terraform Generator
+     Docker Compose Generator  Terraform RouterOS Generator
               │                           │
               ▼                           ▼
        Application Runtime          Infrastructure
@@ -51,6 +53,11 @@ Generators consume the loaded and validated object model.
 
 They do not independently parse the YAML source and should not duplicate
 validation responsibilities.
+
+A deployment realization supplies environment-specific bindings that do not
+belong in the provider-independent Platform Model. The local-lab realization
+currently maps logical networks to Docker parent interfaces and IPAM ranges,
+and to physical RouterOS interfaces.
 
 ---
 
@@ -433,7 +440,7 @@ automation consumes existing infrastructure capabilities.
 
 ## 13. Terraform / RouterOS Backend
 
-The next major deployment backend will target MikroTik RouterOS.
+The Terraform / RouterOS backend is the second implemented deployment backend.
 
 Its purpose is to prove that the same Platform Model driving application
 deployment can also drive network infrastructure.
@@ -450,18 +457,29 @@ deployment can also drive network infrastructure.
         Docker Host               MikroTik CHR
 ```
 
-Candidate mappings include:
+Current mappings include:
 
 ```text
-logical networks     → routed segments / VLANs
-interfaces           → network attachments
-addressing           → RouterOS IP configuration
-policies             → firewall configuration
-routing intent       → RouterOS routing configuration
+logical networks       → RouterOS Ethernet interfaces
+realization mappings   → physical interface factory names
+network CIDRs          → gateway IP addresses
+logical networks       → firewall address-list entries
+communication policies → firewall filter rules
 ```
 
-The exact resource mappings will be introduced incrementally as the lab
-topology is implemented.
+The generator also adds baseline rules for established/related traffic and
+invalid connection state, followed by a logged default deny for other
+inter-zone traffic.
+
+The CLI requires a deployment realization for this backend because physical
+RouterOS interface names are properties of the target environment rather than
+logical platform intent. It emits Terraform HCL that has been validated against
+the existing MikroTik CHR local lab.
+
+The current scope is intentionally narrow. It does not provision CHR, manage
+Terraform state remotely or implement a CI-controlled apply workflow. Additional
+RouterOS resources should be introduced only when required by modeled platform
+behavior.
 
 ---
 
@@ -650,45 +668,87 @@ infrastructure implementations while remaining operationally coherent.
 
 Observability is treated as a platform capability.
 
-The current supporting stack includes:
+The planned Observability/SRE phase follows the initial CI/CD phase. Its
+proposed signal pipeline is:
+
+```text
+Ubuntu / Containers / RouterOS / Applications
+                       │
+          metrics, logs and synthetic probes
+                       │
+              ┌────────┴────────┐
+              ▼                 ▼
+          Prometheus           Loki
+              └────────┬────────┘
+                       ▼
+                    Grafana
+                       │
+                       ▼
+          SLIs / SLOs / Error Budgets
+```
+
+Planned components include:
 
 - Grafana
 - Prometheus
 - Loki
-- Promtail
+- node and RouterOS telemetry collectors
+- application metrics and logs
+- synthetic network-policy probes
 
-A future hybrid environment may use a common observability layer across local
-and cloud deployment targets.
+The probes will test runtime behavior against modeled communication policy.
+Initial examples are:
+
+```text
+DMZ → Internal       expected ALLOW
+Internal → Database  expected ALLOW
+DMZ → Database       expected DENY
+```
+
+Candidate SLIs cover service availability, request latency, allowed-flow
+availability and forbidden-flow enforcement. SLOs will be defined only after
+the corresponding signals exist and can be measured reliably. Error budgets
+and burn-rate alerting are later maturity steps within this phase.
+
+No monitoring stack, dashboards, SLOs or error-budget automation are claimed as
+implemented yet. A future hybrid environment may use the same observability
+layer across local and cloud deployment targets.
 
 This would provide one operational view over multiple realizations of the same
 Platform Model.
 
 ---
 
-## 20. Backend Evolution
+## 20. Delivery and Platform Evolution
 
 The current direction is:
 
 ```text
-v0.1
-Docker Compose
+completed
+Platform Model + Validation
+      │
+      ▼
+completed
+Docker Compose + Terraform / RouterOS
       │
       ▼
 next
-Terraform / RouterOS
+GitHub Actions CI/CD
       │
       ▼
-future
-NetBox integration
+planned
+Observability + SRE
       │
       ▼
-future
-Terraform / AWS
-      │
-      ▼
-future
-Hybrid on-prem + AWS
+later
+NetBox → AWS → Hybrid
 ```
+
+The initial CI pipeline will validate models, run tests, generate both backend
+artifacts and validate them with their native tooling. Artifact publication is
+in scope; automated deployment to the local lab is not. A later CD workflow may
+add planning, explicit approval and controlled apply once connectivity, secrets
+and state management are designed.
 
 Other backends, including Kubernetes or configuration-management systems, may
 be introduced when concrete deployment scenarios justify them.

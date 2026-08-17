@@ -15,13 +15,15 @@ into target-specific artifacts.
                         │
              Validation & Normalisation
                         │
+                 Deployment Realization
+                        │
              ┌──────────┴──────────┐
              │                     │
              ▼                     ▼
-      Docker Compose          Terraform
+      Docker Compose       Terraform / RouterOS
              │                     │
              ▼                     ▼
-       Applications          Infrastructure
+       Applications          Network Infrastructure
 ```
 
 The Platform Model is the **single source of truth**.
@@ -109,11 +111,31 @@ the CLI.
 PYTHONPATH=src .venv/bin/python src/cli.py \
     generate docker-compose \
     models/out-dialer \
+    --realization realizations/out-dialer/local-lab.yaml \
     --output docker-compose.yaml
 ```
 
 The generated artifact has been validated with Docker Compose and used to
 create the modeled network topology and start application containers.
+
+When a deployment realization is supplied, the generator also resolves the
+local-lab macvlan driver, parent interfaces and IPAM subnets. Model-only
+generation remains available for simpler use cases.
+
+### Terraform / RouterOS Backend
+
+The RouterOS backend generates Terraform configuration from the Platform Model
+and a deployment realization. It currently derives:
+
+- physical RouterOS interface mappings from the realization
+- gateway addresses from modeled network CIDRs
+- firewall address-list entries for modeled networks
+- firewall filter rules from modeled communication policies
+- baseline connection-state handling and a final inter-zone deny rule
+
+The generated configuration has been tested against the local MikroTik CHR
+lab. The backend configures existing RouterOS infrastructure; it does not
+provision the CHR virtual machine itself.
 
 ---
 
@@ -132,7 +154,20 @@ Generate Docker Compose:
 PYTHONPATH=src .venv/bin/python src/cli.py \
     generate docker-compose \
     models/out-dialer \
+    --realization realizations/out-dialer/local-lab.yaml \
     --output docker-compose.yaml
+```
+
+The `--realization` option is optional for Docker Compose generation.
+
+Generate RouterOS Terraform:
+
+```bash
+PYTHONPATH=src .venv/bin/python src/cli.py \
+    generate terraform-routeros \
+    models/out-dialer \
+    --realization realizations/out-dialer/local-lab.yaml \
+    --output generated.tf
 ```
 
 Validate the generated artifact:
@@ -174,39 +209,63 @@ Lab construction and workstation configuration belong to the separate
 
 ---
 
-## Next Milestone
+## Next Milestone: CI/CD
 
-The next major backend will generate **Terraform configuration for MikroTik
-RouterOS** from the same Platform Model that already generates Docker Compose.
+The next phase is a basic GitHub Actions pipeline that validates both source
+intent and generated artifacts. The intended initial scope is:
 
-```text
-                   Platform Model
-                          │
-             ┌────────────┴────────────┐
-             │                         │
-             ▼                         ▼
-      Docker Compose              Terraform
-             │                         │
-             ▼                         ▼
-       Docker Host              MikroTik CHR
-```
+- install the Python dependencies
+- validate model schemas and references
+- run the test suite
+- generate Docker Compose and RouterOS Terraform artifacts
+- run `docker compose config`
+- run `terraform fmt -check` and `terraform validate`
+- publish generated artifacts for inspection
 
-The objective is to demonstrate application deployment and network
-infrastructure automation from one source of truth.
+Controlled deployment is deliberately a later step. Planning or applying to
+the local lab requires decisions about secrets, connectivity, state and
+approval gates that are outside the initial CI scope.
 
 ---
 
-## Future Direction
+## Roadmap
 
-The longer-term direction is multiple realizations of the same logical
-Platform Model.
+### Completed
 
-Planned areas of exploration include:
+- Platform Model, schema validation and semantic/reference validation
+- Python loader and internal domain model
+- Docker Compose generation and local runtime validation
+- deployment realization loading and network/IPAM resolution
+- Terraform / RouterOS generation and validation against the local CHR lab
+- CLI commands for validation and both generation backends
 
-- AWS as a cloud deployment backend
-- hybrid on-prem/cloud deployment
-- shared observability across deployment targets
-- NetBox integration for inventory and IPAM
+### Next: CI/CD
+
+- GitHub Actions validation and test workflow
+- generation and validation of Docker Compose and RouterOS Terraform artifacts
+- publication of generated artifacts
+- later, a controlled plan/apply workflow
+
+### Planned: Observability and SRE
+
+- Prometheus metrics for Ubuntu nodes, containers and RouterOS
+- Loki-based application and infrastructure log aggregation
+- Grafana dashboards correlating platform, network and application signals
+- synthetic network-policy probes for expected allowed and denied flows
+- SLIs and SLOs for service availability, latency, allowed-flow availability
+  and forbidden-flow enforcement
+- error budgets and, later, burn-rate alerting
+
+The synthetic probes are intended to compare runtime behavior with modeled
+security intent. Representative checks include DMZ to Internal and Internal to
+Database as expected allowed flows, and DMZ to Database as an expected denied
+flow.
+
+### Later Exploration
+
+- NetBox inventory and IPAM integration
+- Terraform / AWS realization
+- hybrid on-prem/cloud deployment and shared observability
 - hierarchical infrastructure context for larger environments
 - Kubernetes as an alternative application runtime
 
@@ -263,8 +322,13 @@ tests/
 | Docker Compose generator | ✅ v0.1.0 |
 | Docker Compose CLI generation | ✅ v0.1.0 |
 | Docker runtime validation | ✅ Initial validation |
-| Local routed lab | 🚧 In progress |
-| Terraform / RouterOS backend | Planned |
+| Deployment realization | ✅ Local lab |
+| Local routed lab | ✅ Initial validation |
+| Terraform / RouterOS generator | ✅ Initial implementation |
+| Terraform / RouterOS CLI generation | ✅ |
+| RouterOS CHR validation | ✅ Initial validation |
+| CI/CD pipeline | Next phase |
+| Observability / SRE | Planned |
 | NetBox inventory/IPAM integration | Future |
 | AWS backend | Future |
 | Hybrid deployment scenario | Future |
@@ -293,8 +357,8 @@ see **[Architecture](docs/architecture.md)**.
 
 This project is under active development.
 
-The Docker Compose backend provides the first executable end-to-end projection
-of the Platform Model.
+Docker Compose and Terraform / RouterOS now provide two executable projections
+of the same Platform Model and local-lab realization.
 
-Current development is focused on establishing the routed local lab and
-implementing the first Terraform network backend using MikroTik RouterOS.
+Current development is focused on CI/CD. Observability and SRE are the next
+planned platform phase after that foundation is in place.
