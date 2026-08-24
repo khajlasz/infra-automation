@@ -10,6 +10,7 @@ on:
       - "models/**"
       - "realizations/**"
       - "schema/**"
+      - "lab/terraform/**"
       - "pyproject.toml"
       - ".github/workflows/ci.yml"
 
@@ -40,15 +41,18 @@ jobs:
       - name: Validate Out-Dialer model
         run: python src/cli.py validate models/out-dialer
 
+      - name: Create artifact directory
+        run: mkdir -p /tmp/generated-infrastructure
+
       - name: Generate Docker Compose
         run: |
           python src/cli.py generate docker-compose \
             models/out-dialer \
             --realization realizations/out-dialer/local-lab.yaml \
-            --output /tmp/docker-compose.yaml
+            --output /tmp/generated-infrastructure/docker-compose.yaml
 
       - name: Validate Docker Compose
-        run: docker compose -f /tmp/docker-compose.yaml config
+        run: docker compose -f /tmp/generated-infrastructure/docker-compose.yaml config
 
       - name: Generate RouterOS Terraform
         run: |
@@ -76,10 +80,14 @@ jobs:
         working-directory: lab/terraform/routeros
         run: terraform validate
 
+      - name: Stage Terraform artifact
+        run: |
+          cp lab/terraform/routeros/generated.tf \
+            /tmp/generated-infrastructure/generated.tf
+
       - name: Upload generated artifacts
         uses: actions/upload-artifact@v4
         with:
           name: generated-infrastructure
-          path: |
-            /tmp/docker-compose.yaml
-            lab/terraform/routeros/generated.tf
+          path: /tmp/generated-infrastructure/
+
