@@ -21,3 +21,8 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
