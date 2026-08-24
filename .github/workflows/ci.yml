@@ -64,9 +64,13 @@ jobs:
         working-directory: lab/terraform/routeros
         run: terraform init -backend=false
 
-      - name: Check Terraform formatting
+      - name: Check Terraform source formatting
         working-directory: lab/terraform/routeros
-        run: terraform fmt -check
+        run: terraform fmt -check provider.tf versions.tf
+
+      - name: Format generated Terraform
+        working-directory: lab/terraform/routeros
+        run: terraform fmt generated.tf
 
       - name: Validate Terraform
         working-directory: lab/terraform/routeros
