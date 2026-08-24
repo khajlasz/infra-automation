@@ -719,9 +719,300 @@ Platform Model.
 
 ---
 
-## 20. Delivery and Platform Evolution
+## 20. CI/CD and Platform Delivery
 
-The current direction is:
+CI/CD is the next implementation phase after the initial Docker Compose and
+Terraform / RouterOS backends.
+
+The delivery architecture separates **change validation** from **deployment**.
+
+A proposed change must be validated before it can be merged into the trusted
+`main` branch. Deployment is performed only from reviewed and merged code.
+
+```text
+Developer
+    │
+    ▼
+Feature Branch
+    │
+    ▼
+Pull Request
+    │
+    ▼
+GitHub Actions CI
+    │
+    ├── install project and development dependencies
+    ├── run unit tests
+    ├── validate Platform Model structure
+    ├── validate Platform Model semantics
+    ├── validate deployment realization
+    ├── generate Docker Compose artifact
+    ├── generate Terraform / RouterOS artifact
+    ├── validate Docker Compose artifact
+    └── validate Terraform artifact
+    │
+    ▼
+Required Checks
+    │
+    ▼
+Human Review / Approval
+    │
+    ▼
+Merge to main
+    │
+    ▼
+Deployment Workflow
+    │
+    ├── regenerate artifacts from merged source
+    ├── Terraform plan
+    ├── deployment approval
+    ├── Terraform apply
+    ├── Docker Compose deployment
+    └── post-deployment verification
+    │
+    ▼
+Local Reference Lab
+```
+
+### 20.1 Continuous Integration
+
+Continuous Integration validates proposed changes without modifying runtime
+infrastructure.
+
+The CI workflow is stored with the source code under:
+
+```text
+.github/workflows/
+```
+
+and is executed by GitHub Actions.
+
+The initial CI workflow will use GitHub-hosted runners. These runners are
+ephemeral execution environments and have no dependency on the local
+development workstation or reference lab.
+
+CI is expected to run for Pull Requests and may also run on feature-branch
+pushes to provide feedback before review.
+
+Its responsibilities are:
+
+1. create a clean Python environment;
+2. install the project and development dependencies from `pyproject.toml`;
+3. execute the automated test suite;
+4. perform schema and semantic validation;
+5. load and validate the selected deployment realization;
+6. generate Docker Compose and Terraform / RouterOS artifacts;
+7. validate the generated artifacts using their native tooling.
+
+Conceptually:
+
+```text
+Platform Model
+      +
+Deployment Realization
+      │
+      ▼
+Validation
+      │
+      ▼
+Generators
+      │
+      ├───────────────┐
+      ▼               ▼
+Docker Compose     Terraform
+      │               │
+      ▼               ▼
+compose config    fmt / validate
+```
+
+Artifact generation is deliberately part of CI even though CI does not deploy
+those artifacts.
+
+This proves that a proposed change can be translated successfully into valid
+deployment representations before it is accepted into `main`.
+
+### 20.2 Pull Request Quality Gate
+
+Direct changes to `main` should be replaced by a branch-and-Pull-Request
+workflow.
+
+The intended development lifecycle is:
+
+```text
+feature branch
+      │
+      ▼
+Pull Request
+      │
+      ├── automated CI checks
+      └── human review
+              │
+              ▼
+           merge
+```
+
+Repository branch protection or rulesets should require the relevant CI checks
+to pass before merge.
+
+Human approval provides a separate review boundary between automated
+correctness checks and acceptance of the infrastructure change.
+
+For a single-developer portfolio repository, the exact review requirement may
+depend on available collaborators, but the architecture supports the same
+review model used by a multi-engineer environment.
+
+### 20.3 Continuous Deployment
+
+Continuous Deployment has a different trust boundary from CI.
+
+CI processes proposed changes and therefore SHALL NOT receive credentials or
+network access that allow it to modify the reference environment.
+
+The deployment workflow operates only on trusted code from `main`.
+
+```text
+Pull Request CI
+    │
+    │ no infrastructure modification
+    ▼
+Merge to main
+    │
+    ▼
+Deployment workflow
+    │
+    │ trusted deployment context
+    ▼
+Reference environment
+```
+
+The first deployment target is the existing local UTM reference lab:
+
+```text
+macOS / UTM
+     │
+     ├── Ubuntu Docker Host
+     │
+     └── MikroTik CHR
+```
+
+Because GitHub-hosted runners cannot directly access the private local lab,
+deployment will require a **self-hosted GitHub Actions runner** with connectivity
+to the target environment.
+
+The exact runner placement will be selected during implementation. It may run
+on the macOS automation workstation or on an appropriate management host inside
+the lab.
+
+### 20.4 Deployment Sequence
+
+The initial deployment workflow should regenerate deployment artifacts from the
+merged source rather than trusting artifacts produced by an earlier,
+unmerged branch execution.
+
+The expected sequence is:
+
+```text
+main commit
+    │
+    ▼
+checkout exact merged revision
+    │
+    ▼
+generate deployment artifacts
+    │
+    ▼
+Terraform plan
+    │
+    ▼
+deployment approval
+    │
+    ▼
+Terraform apply
+    │
+    ▼
+Docker Compose deployment
+    │
+    ▼
+post-deployment verification
+```
+
+Terraform planning is intentionally separated from application of the change.
+
+The initial implementation should include an approval boundary before
+infrastructure modification. Fully automatic deployment may be considered only
+after the deployment and rollback behavior is sufficiently mature.
+
+### 20.5 Post-Deployment Verification
+
+A successful Terraform or Docker command does not by itself prove that the
+platform is operating correctly.
+
+The deployment workflow should therefore perform runtime verification after
+changes are applied.
+
+Initial verification may include:
+
+* expected containers are running;
+* application health endpoints respond;
+* expected network paths are reachable;
+* modeled allowed communication succeeds;
+* modeled forbidden communication remains blocked;
+* RouterOS configuration is reachable and consistent with the generated
+  realization.
+
+This provides the initial bridge between deployment automation and the planned
+Observability/SRE phase.
+
+Later, synthetic probes and platform telemetry can provide continuous versions
+of these checks.
+
+### 20.6 CI/CD Trust Boundaries
+
+The delivery architecture deliberately maintains separate trust levels.
+
+| Stage                        | Source               | Infrastructure access | Purpose                              |
+| ---------------------------- | -------------------- | --------------------: | ------------------------------------ |
+| Feature branch               | Proposed code        |                    No | Development                          |
+| Pull Request CI              | Proposed code        |                    No | Validation and artifact verification |
+| Human review                 | Proposed code        |                    No | Change approval                      |
+| `main`                       | Reviewed code        |      No direct access | Trusted source                       |
+| Deployment workflow          | `main`               |                   Yes | Controlled deployment                |
+| Post-deployment verification | Deployed environment |      Read/test access | Runtime validation                   |
+
+The important security principle is:
+
+> Unreviewed code must not receive credentials capable of modifying the
+> deployment environment.
+
+This separation becomes increasingly important if future deployment targets
+include shared infrastructure or public cloud environments.
+
+### 20.7 Artifact Ownership
+
+Docker Compose and Terraform files are generated representations of the
+Platform Model and Deployment Realization.
+
+The authoritative inputs remain:
+
+```text
+Platform Model
+        +
+Deployment Realization
+```
+
+Generated files are therefore **build artifacts**, not independent sources of
+truth.
+
+CI may publish generated files as workflow artifacts for inspection,
+troubleshooting or review.
+
+CD should regenerate them from the exact trusted `main` revision being
+deployed, ensuring that runtime infrastructure can always be traced back to
+version-controlled intent.
+
+### 20.8 Delivery Evolution
+
+The current platform evolution is:
 
 ```text
 completed
@@ -732,8 +1023,12 @@ completed
 Docker Compose + Terraform / RouterOS
       │
       ▼
+current
+Pull Request CI
+      │
+      ▼
 next
-GitHub Actions CI/CD
+Controlled Local-Lab Deployment
       │
       ▼
 planned
@@ -744,19 +1039,31 @@ later
 NetBox → AWS → Hybrid
 ```
 
-The initial CI pipeline will validate models, run tests, generate both backend
-artifacts and validate them with their native tooling. Artifact publication is
-in scope; automated deployment to the local lab is not. A later CD workflow may
-add planning, explicit approval and controlled apply once connectivity, secrets
-and state management are designed.
+The first CI milestone therefore establishes:
 
-Other backends, including Kubernetes or configuration-management systems, may
-be introduced when concrete deployment scenarios justify them.
+```text
+change
+  → validate
+  → test
+  → generate
+  → verify artifacts
+  → review
+  → merge
+```
 
-New backends should reuse the existing Platform Model wherever possible.
+The following CD milestone extends this to:
 
-A change to the model should represent a genuinely missing domain concept
-rather than a requirement imposed by one particular implementation technology.
+```text
+merge
+  → plan
+  → approve
+  → deploy
+  → verify runtime
+```
+
+This creates a complete delivery path from declarative platform intent to a
+reviewed, validated and operational realization.
+
 
 ---
 

@@ -211,20 +211,76 @@ Lab construction and workstation configuration belong to the separate
 
 ## Next Milestone: CI/CD
 
-The next phase is a basic GitHub Actions pipeline that validates both source
-intent and generated artifacts. The intended initial scope is:
+The next phase introduces a controlled delivery lifecycle around changes to the
+Platform Model, realization and generators.
 
-- install the Python dependencies
-- validate model schemas and references
-- run the test suite
-- generate Docker Compose and RouterOS Terraform artifacts
-- run `docker compose config`
-- run `terraform fmt -check` and `terraform validate`
-- publish generated artifacts for inspection
+The delivery model separates validation of proposed changes from deployment of
+trusted changes:
 
-Controlled deployment is deliberately a later step. Planning or applying to
-the local lab requires decisions about secrets, connectivity, state and
-approval gates that are outside the initial CI scope.
+```text
+Feature Branch
+      │
+      ▼
+Pull Request
+      │
+      ▼
+GitHub Actions CI
+      │
+      ├── install project and development dependencies
+      ├── run the complete test suite
+      ├── validate model schemas and references
+      ├── validate the deployment realization
+      ├── generate Docker Compose
+      ├── generate RouterOS Terraform
+      ├── validate Docker Compose
+      └── validate Terraform
+      │
+      ▼
+Required Checks + Human Review
+      │
+      ▼
+Merge to main
+      │
+      ▼
+Controlled Deployment
+      │
+      ├── regenerate artifacts from merged source
+      ├── Terraform plan
+      ├── deployment approval
+      ├── Terraform apply
+      ├── Docker Compose deployment
+      └── post-deployment smoke tests
+      │
+      ▼
+Local Reference Lab
+```
+Pull Request CI will run on GitHub-hosted runners and will not have credentials
+or connectivity allowing it to modify runtime infrastructure.
+
+Direct changes to main should be replaced by a branch-and-Pull-Request
+workflow with required automated checks before merge.
+
+Deployment is a separate trust boundary. The first deployment target will be
+the existing UTM local lab. Because the lab is not reachable from GitHub-hosted
+runners, deployment will require a self-hosted GitHub Actions runner with
+connectivity to the environment.
+
+The initial post-deployment validation will deliberately remain small. It will
+be a reference-platform smoke suite rather than an exhaustive set of tests for
+every possible model change.
+
+Representative checks include:
+
+- expected application containers are running;
+- application health endpoints respond;
+- expected allowed network paths remain reachable;
+- expected forbidden network paths remain blocked.
+
+Broader model-derived runtime verification and continuous synthetic testing are
+planned as part of the later Observability/SRE phase.
+
+Generated Docker Compose and Terraform files remain build artifacts. The
+Platform Model and Deployment Realization remain the authoritative inputs.
 
 ---
 
@@ -241,10 +297,33 @@ approval gates that are outside the initial CI scope.
 
 ### Next: CI/CD
 
-- GitHub Actions validation and test workflow
-- generation and validation of Docker Compose and RouterOS Terraform artifacts
-- publication of generated artifacts
-- later, a controlled plan/apply workflow
+#### Pull Request CI
+
+- declare development/test dependencies in `pyproject.toml`
+- introduce feature-branch and Pull Request workflow
+- run the complete automated test suite
+- validate Platform Model schemas and semantic references
+- validate deployment realization
+- generate Docker Compose and RouterOS Terraform artifacts
+- validate generated Docker Compose with native tooling
+- run Terraform formatting and configuration validation
+- publish generated artifacts for inspection
+- configure required CI checks before merge to `main`
+
+#### Controlled Local-Lab Deployment
+
+- trigger deployment only from trusted `main`
+- introduce a self-hosted runner with local-lab connectivity
+- regenerate artifacts from the exact merged revision
+- run `terraform plan`
+- require an approval gate before infrastructure modification
+- apply RouterOS configuration with Terraform
+- deploy application runtime with Docker Compose
+- run a small post-deployment smoke suite
+
+The initial smoke suite validates the reference platform as a whole rather than
+attempting change-specific test selection. More extensive model-derived runtime
+verification belongs to the Observability/SRE phase.
 
 ### Planned: Observability and SRE
 
@@ -252,6 +331,7 @@ approval gates that are outside the initial CI scope.
 - Loki-based application and infrastructure log aggregation
 - Grafana dashboards correlating platform, network and application signals
 - synthetic network-policy probes for expected allowed and denied flows
+- evolve deployment smoke tests into continuous model-aware synthetic checks
 - SLIs and SLOs for service availability, latency, allowed-flow availability
   and forbidden-flow enforcement
 - error budgets and, later, burn-rate alerting
@@ -348,6 +428,7 @@ For detailed information about:
 - Terraform / RouterOS direction
 - NetBox and hierarchical infrastructure modelling
 - cloud and hybrid evolution
+- CI/CD trust boundaries and delivery lifecycle
 
 see **[Architecture](docs/architecture.md)**.
 
