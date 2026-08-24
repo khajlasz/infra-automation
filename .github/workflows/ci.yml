@@ -75,3 +75,11 @@ jobs:
       - name: Validate Terraform
         working-directory: lab/terraform/routeros
         run: terraform validate
+
+      - name: Upload generated artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-infrastructure
+          path: |
+            /tmp/docker-compose.yaml
+            lab/terraform/routeros/generated.tf
