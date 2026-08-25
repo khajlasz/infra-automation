@@ -1,0 +1,29 @@
+name: Deploy Local Lab
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  runner-test:
+    name: Verify local lab runner
+    runs-on:
+      - self-hosted
+      - macOS
+      - ARM64
+      - local-lab
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Show runner context
+        run: |
+          echo "Runner is alive"
+          hostname
+          pwd
+          uname -m
+          git rev-parse --short HEAD
