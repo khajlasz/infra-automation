@@ -28,22 +28,22 @@ jobs:
           uname -m
           git rev-parse --short HEAD
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
+      - name: Check Python
+        run: |
+          which python3
+          python3 --version
 
       - name: Install project
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e ".[dev]"
 
       - name: Validate Out-Dialer model
-        run: python src/cli.py validate models/out-dialer
+        run: python3 src/cli.py validate models/out-dialer
 
       - name: Generate RouterOS Terraform
         run: |
-          python src/cli.py generate terraform-routeros \
+          python3 src/cli.py generate terraform-routeros \
             models/out-dialer \
             --realization realizations/out-dialer/local-lab.yaml \
             --output lab/terraform/routeros/generated.tf
