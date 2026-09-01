@@ -1,4 +1,6 @@
 terraform {
+  backend "local" {}
+
   required_providers {
     routeros = {
       source  = "terraform-routeros/routeros"
