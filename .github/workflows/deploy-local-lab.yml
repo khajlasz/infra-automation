@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  runner-test:
-    name: Verify local lab runner
+  terraform-plan:
+    name: Plan local lab infrastructure
     runs-on:
       - self-hosted
       - macOS
@@ -27,3 +27,45 @@ jobs:
           pwd
           uname -m
           git rev-parse --short HEAD
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Validate Out-Dialer model
+        run: python src/cli.py validate models/out-dialer
+
+      - name: Generate RouterOS Terraform
+        run: |
+          python src/cli.py generate terraform-routeros \
+            models/out-dialer \
+            --realization realizations/out-dialer/local-lab.yaml \
+            --output lab/terraform/routeros/generated.tf
+
+      - name: Format generated Terraform
+        working-directory: lab/terraform/routeros
+        run: terraform fmt generated.tf
+
+      - name: Initialize Terraform backend
+        working-directory: lab/terraform/routeros
+        run: |
+          terraform init -reconfigure \
+            -backend-config="path=${{ secrets.LOCAL_LAB_STATE_PATH }}"
+
+            - name: Show Terraform state
+              working-directory: lab/terraform/routeros
+              run: terraform state list
+
+            - name: Plan RouterOS infrastructure
+              working-directory: lab/terraform/routeros
+              env:
+                ROS_HOSTURL: ${{ secrets.ROS_HOSTURL }}
+                ROS_USERNAME: ${{ secrets.ROS_USERNAME }}
+                ROS_PASSWORD: ${{ secrets.ROS_PASSWORD }}
+              run: terraform plan
