@@ -33,17 +33,18 @@ jobs:
           which python3
           python3 --version
 
-      - name: Install project
+      - name: Create Python virtual environment
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -e ".[dev]"
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e ".[dev]"
 
       - name: Validate Out-Dialer model
-        run: python3 src/cli.py validate models/out-dialer
+        run: .venv/bin/python src/cli.py validate models/out-dialer
 
       - name: Generate RouterOS Terraform
         run: |
-          python3 src/cli.py generate terraform-routeros \
+          .venv/bin/python src/cli.py generate terraform-routeros \
             models/out-dialer \
             --realization realizations/out-dialer/local-lab.yaml \
             --output lab/terraform/routeros/generated.tf
@@ -58,14 +59,14 @@ jobs:
           terraform init -reconfigure \
             -backend-config="path=${{ secrets.LOCAL_LAB_STATE_PATH }}"
 
-            - name: Show Terraform state
-              working-directory: lab/terraform/routeros
-              run: terraform state list
+      - name: Show Terraform state
+        working-directory: lab/terraform/routeros
+        run: terraform state list
 
-            - name: Plan RouterOS infrastructure
-              working-directory: lab/terraform/routeros
-              env:
-                ROS_HOSTURL: ${{ secrets.ROS_HOSTURL }}
-                ROS_USERNAME: ${{ secrets.ROS_USERNAME }}
-                ROS_PASSWORD: ${{ secrets.ROS_PASSWORD }}
-              run: terraform plan
+      - name: Plan RouterOS infrastructure
+        working-directory: lab/terraform/routeros
+        env:
+          ROS_HOSTURL: ${{ secrets.ROS_HOSTURL }}
+          ROS_USERNAME: ${{ secrets.ROS_USERNAME }}
+          ROS_PASSWORD: ${{ secrets.ROS_PASSWORD }}
+        run: terraform plan
