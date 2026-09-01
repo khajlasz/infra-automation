@@ -67,49 +67,159 @@ implemented.
 
 ---
 
-# Current Milestone - Routed Local Lab
+# Completed - Routed Local Lab
 
-The local lab is a prerequisite environment used to demonstrate compute and
-network automation from the same Platform Model.
+- [x] Ubuntu Docker host
+- [x] MikroTik CHR router/firewall
+- [x] Three modeled network zones
+- [x] Inter-zone routing
+- [x] Firewall policy enforcement
+- [x] Runtime connectivity validation
 
-Lab construction itself belongs to the separate `dev-environment` project.
 
-## Compute Runtime
+# Completed - Terraform / RouterOS Backend
 
-- [ ] Keep Ubuntu VM as dedicated Docker host
-- [ ] Install and verify Docker on Ubuntu
-- [ ] Enable SSH administration from macOS
-- [ ] Optionally configure a remote Docker context
-- [ ] Copy/generated Compose artifact to the Docker host
-- [ ] Run generated Out-Dialer deployment on the VM
+- [x] RouterOS Terraform provider
+- [x] Model -> RouterOS generator
+- [x] Interface realization
+- [x] Gateway addressing
+- [x] Address lists
+- [x] Firewall policy generation
+- [x] Generator tests
+- [x] CLI generation
+- [x] Existing CHR resources imported into Terraform state
+- [x] Persistent local backend outside disposable runner checkout
 
-## Network Runtime
 
-- [ ] Create MikroTik CHR VM in UTM
-- [ ] Establish management connectivity from macOS
-- [ ] Define VM NIC topology for management and modeled networks
-- [ ] Prove manual routing between required lab segments
-- [ ] Prove traffic visibility/firewall enforcement through RouterOS
+# Completed - CI/CD v0.1
+
+- [x] GitHub-hosted PR validation
+- [x] Python tests
+- [x] Platform Model validation
+- [x] Docker Compose generation and native validation
+- [x] RouterOS Terraform generation and native validation
+- [x] Generated infrastructure artifacts
+- [x] Self-hosted macOS local-lab runner
+- [x] Post-merge local deployment workflow
+- [x] Generate Terraform from merged Platform Model
+- [x] Persistent Terraform state available to self-hosted runner
+- [x] Refresh real RouterOS resources from CI/CD workflow
+- [x] Automated `terraform plan` against CHR
+
+Deferred intentionally:
+- automatic `terraform apply`
+- Docker deployment from CD
+- deployment approval/gating
+
+CD v0.1 intentionally stops at automated planning against the real
+lab. Apply remains controlled/manual until further deployment automation
+provides enough value to justify the additional security and lifecycle work.
 
 ---
 
-# Next Backend - Terraform / RouterOS
+# Current Milestone - Observability / SRE
 
-Goal: project the same Platform Model used by Docker Compose into network
-infrastructure configuration.
+## OBS-1 - Operational Health Model
 
-- [ ] Select and validate RouterOS Terraform provider
-- [ ] Define minimum Platform Model -> RouterOS mapping
-- [ ] Generate routed network / VLAN resources
-- [ ] Generate IP addressing
-- [ ] Generate routing configuration
-- [ ] Generate firewall policy from modeled communication intent
-- [ ] Keep deterministic Terraform output
-- [ ] Add generator unit tests
-- [ ] Add CLI generation path
-- [ ] Apply generated configuration to the existing CHR lab router
-- [ ] Demonstrate application and network topology from one model
+- [ ] Define what "healthy" means for the local platform
+- [ ] Define host health expectations
+- [ ] Define application health expectations
+- [ ] Define network-policy expectations
+- [ ] Define RouterOS health expectations
+- [ ] Classify checks as deployment smoke, continuous synthetic monitoring,
+      and/or future Kubernetes probes
 
+Health expectations should be defined conceptually once. Deployment smoke
+tests, continuous synthetic monitoring and future Kubernetes probes are
+different mechanisms, but should not evolve into unrelated definitions of
+platform health.
+
+
+## OBS-2A - Ansible Host Configuration
+
+Use the observability milestone as the first concrete requirement for
+configuration management.
+
+- [ ] Add Ansible project structure
+- [ ] Define Ubuntu lab host inventory
+- [ ] Create base host configuration role
+- [ ] Manage observability prerequisites
+- [ ] Manage Node Exporter installation/configuration
+- [ ] Demonstrate idempotent second run
+
+Future: evaluate generated Ansible inventory/variables from the Platform Model.
+
+
+## OBS-2B - Metrics Foundation
+
+- [ ] Deploy/configure Prometheus
+- [ ] Collect Ubuntu Node Exporter metrics
+- [ ] Verify CPU, memory, disk and network telemetry
+- [ ] Define useful infrastructure recording/query patterns
+
+
+## OBS-2C - RouterOS Metrics
+
+- [ ] Export RouterOS operational metrics
+- [ ] Collect interface status/traffic
+- [ ] Collect resource utilization
+- [ ] Evaluate firewall-rule counters as observability signals
+
+
+## OBS-3 - Synthetic Application and Network Checks
+
+Initial expectations:
+
+- [ ] Portal responds
+- [ ] Campaign Manager responds
+- [ ] DMZ -> Internal succeeds
+- [ ] Internal -> Database succeeds
+- [ ] DMZ -> Database remains blocked
+- [ ] CHR is reachable
+
+- [ ] Make appropriate checks reusable as post-deployment smoke tests
+- [ ] Execute checks continuously
+- [ ] Export results as Prometheus metrics
+- [ ] Preserve possibility of deriving network-policy expectations from
+      Platform Model policy definitions later
+
+
+## OBS-4 - Logging
+
+- [ ] Integrate application/container logs with Loki
+- [ ] Integrate relevant host/system logs
+- [ ] Correlate failures observed in metrics/probes with logs
+
+
+## OBS-5 - Grafana Operational Dashboard
+
+Create a Local Lab Overview showing:
+
+- [ ] platform component availability
+- [ ] application availability
+- [ ] expected network-policy behavior
+- [ ] host resource utilization
+- [ ] network traffic
+- [ ] RouterOS/firewall signals
+
+
+## OBS-6 - SLI / SLO / Error Budget
+
+- [ ] Define initial availability SLIs from measured signals
+- [ ] Define application availability SLO
+- [ ] Evaluate network-policy correctness as an SLI
+- [ ] Introduce error-budget calculation
+- [ ] Document SRE interpretation rather than only dashboard metrics
+
+
+## OBS-7 - Distributed Tracing
+
+Tracing follows metrics, synthetic monitoring and logs.
+
+- [ ] Introduce OpenTelemetry
+- [ ] Instrument suitable application request paths
+- [ ] Select tracing backend (for example Tempo)
+- [ ] Correlate traces with metrics/logs in Grafana
 ---
 
 # NetBox Integration
@@ -161,19 +271,42 @@ showing that two networks can communicate.
 
 ---
 
-# Configuration Management
+# Configuration Management - Ansible
 
-Ansible is not an active milestone for the current Docker-based compute model.
+Ansible becomes an active part of the project during the Observability / SRE
+milestone.
 
-If a future deployment target uses VMs or bare-metal hosts, revisit:
+Its primary responsibility is host configuration rather than infrastructure
+resource lifecycle or application realization. Terraform continues to manage
+infrastructure resources, while Docker Compose and future Kubernetes
+realizations manage application workloads.
 
-- [ ] Ansible inventory generation
-- [ ] host/group variable generation
-- [ ] OS configuration
-- [ ] application configuration
+Initial use case: configure the existing Ubuntu lab host for observability
+and runtime prerequisites.
 
-Configuration management should be added only when a concrete runtime requires
-it.
+- [ ] Add Ansible project structure
+- [ ] Define inventory for the Ubuntu lab host
+- [ ] Create reusable base host role
+- [ ] Manage required OS packages and configuration
+- [ ] Manage observability prerequisites
+- [ ] Install and configure Node Exporter
+- [ ] Manage relevant observability agents and configuration
+- [ ] Ensure required services are enabled and running
+- [ ] Demonstrate idempotency with a second playbook run producing no
+      unnecessary changes
+
+Future work:
+
+- [ ] Evaluate generating Ansible inventory from the Platform Model
+- [ ] Evaluate generating host/group variables from model and realization data
+- [ ] Extend host configuration when additional VM or bare-metal deployment
+      targets justify it
+- [ ] Evaluate Ansible-based Kubernetes node/bootstrap configuration if a
+      concrete requirement emerges
+
+Ansible should remain responsible for configuration management. It should not
+duplicate infrastructure lifecycle management performed by Terraform or
+application deployment responsibilities owned by deployment realizations.
 
 ---
 
@@ -197,6 +330,26 @@ Potential future directions, to be justified by concrete use cases:
 - [ ] VM-based compute realization
 - [ ] AI infrastructure reference platform
 
+---
+
+# Next Major Milestone - Kubernetes Realization
+
+Goal: demonstrate that the same logical application intent can be realized
+on both Docker Compose and Kubernetes without introducing Kubernetes-specific
+concepts into the Platform Model unnecessarily.
+
+- [ ] Establish lightweight local Kubernetes environment
+- [ ] Define Platform Model -> Kubernetes mapping
+- [ ] Implement Kubernetes generator
+- [ ] Generate Deployments
+- [ ] Generate Services
+- [ ] Map resource requirements
+- [ ] Map health intent to readiness/liveness/startup probes
+- [ ] Map appropriate connectivity intent to NetworkPolicy
+- [ ] Validate generated manifests
+- [ ] Deploy the Out-Dialer reference platform
+- [ ] Compare functional behavior with Docker Compose realization
+  
 ---
 
 # Open Architectural Questions
