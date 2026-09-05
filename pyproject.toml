@@ -25,4 +25,7 @@ pythonpath = ["src"]
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "requests>=2.31.0",
+    "prometheus-client>=0.17.1",
+    "Flask>=2.3.3",
 ]
