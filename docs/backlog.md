@@ -379,3 +379,53 @@ concepts into the Platform Model unnecessarily.
 - Generators consume the validated model rather than duplicating validation.
 - Deployment-specific implementation belongs in backends.
 - Introduce new abstractions only when implementation proves they are needed.
+
+
+# Observability MS1 Spotted Gaps
+
+## Model/Realization Correction
+
+The current Out-Dialer local-lab deployment requires Docker host-port overrides
+because multiple application containers expose their metrics endpoint on port
+9090 while running on the same Docker host.
+
+The Platform Model correctly describes the application-side metrics port as
+9090. However, deployment-specific host-port mappings such as `19090:9090` and
+`29090:9090` are not currently represented in the realization model. These
+mappings have therefore been applied manually to the generated Docker Compose
+artifact.
+
+In a future realization/generator update:
+
+- represent Docker host-port overrides in the realization;
+- keep application/container ports in the Platform Model;
+- have the Docker Compose generator combine the model endpoint with the
+  realization-specific host-port override;
+- eliminate manual modification of generated Docker Compose artifacts.
+
+## Campaign Execution Queue
+
+The current synthetic Out-Dialer implementation starts a new background thread
+for every accepted campaign. As a result, a campaign transitions from `queued`
+to `running` almost immediately and there is no actual execution queue or
+bounded worker capacity.
+
+This limits the usefulness of the synthetic workload for observability
+exercises. In particular, `campaign_queue_depth` would normally remain close to
+zero and the system cannot realistically demonstrate workload saturation or
+queue buildup.
+
+In a future workload update:
+
+- introduce an explicit campaign execution queue;
+- use a fixed, configurable number of Campaign Manager worker threads;
+- keep accepted campaigns in `queued` state until a worker becomes available;
+- transition a campaign to `running` only when a worker starts processing it;
+- preserve the existing asynchronous API behavior where `POST /campaigns`
+  returns `202 Accepted` without waiting for execution;
+- allow later observability scenarios to demonstrate queue depth, worker
+  saturation, and increasing campaign execution latency under load.
+
+The implementation should remain lightweight and use Python's standard
+threading/queue mechanisms rather than introducing an external task queue or
+message broker.
