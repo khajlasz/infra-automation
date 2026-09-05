@@ -379,3 +379,24 @@ concepts into the Platform Model unnecessarily.
 - Generators consume the validated model rather than duplicating validation.
 - Deployment-specific implementation belongs in backends.
 - Introduce new abstractions only when implementation proves they are needed.
+
+
+# Model/Realization Correction
+
+The current Out-Dialer local-lab deployment requires Docker host-port overrides
+because multiple application containers expose their metrics endpoint on port
+9090 while running on the same Docker host.
+
+The Platform Model correctly describes the application-side metrics port as
+9090. However, deployment-specific host-port mappings such as `19090:9090` and
+`29090:9090` are not currently represented in the realization model. These
+mappings have therefore been applied manually to the generated Docker Compose
+artifact.
+
+In a future realization/generator update:
+
+- represent Docker host-port overrides in the realization;
+- keep application/container ports in the Platform Model;
+- have the Docker Compose generator combine the model endpoint with the
+  realization-specific host-port override;
+- eliminate manual modification of generated Docker Compose artifacts.
