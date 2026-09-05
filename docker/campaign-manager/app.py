@@ -2,7 +2,6 @@ from flask import Flask, jsonify, request
 import requests
 import uuid
 import threading
-import time
 from prometheus_client import Gauge, start_http_server
 
 app = Flask(__name__)

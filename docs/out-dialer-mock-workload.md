@@ -255,7 +255,11 @@ Example terminal response:
 ```JSON
 {
   "campaign_id": "8f03c5...",
-  "status": "completed"
+  "status": "completed",
+  "results": {
+    "successful": 2,
+    "failed": 1
+  }
 }
 ```
 An unknown campaign ID returns:

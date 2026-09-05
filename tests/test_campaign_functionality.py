@@ -1,15 +1,13 @@
 """Tests for campaign creation and management functionality."""
 
-from unittest.mock import patch, MagicMock
-import sys
-import unittest
-from unittest.mock import patch, MagicMock
+import importlib.util
 import json
 from pathlib import Path
-import requests
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
 
-import importlib.util
-from pathlib import Path
+import requests
 
 
 REPO_ROOT = Path(__file__).parents[1]
