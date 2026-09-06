@@ -19,7 +19,11 @@ def load_module(name, path):
 
     sys.modules[name] = module
 
-    with patch("prometheus_client.Gauge"):
+    with (
+        patch("prometheus_client.Gauge"),
+        patch("prometheus_client.Counter"),
+        patch("prometheus_client.Histogram"),
+    ):
         spec.loader.exec_module(module)
 
     return module
