@@ -478,6 +478,27 @@ class CampaignManagerTests(unittest.TestCase):
 
         self.assertEqual(status, "failed")
 
+    def test_simulate_async_execution_with_nonexistent_campaign(self):
+        """Test that nonexistent campaign does not create or mutate campaign state."""
+        # This test verifies our fix handles the case where campaign doesn't exist
+        campaign_id = "nonexistent-campaign-id"
+        numbers = ["+48111111111"]
+        prompt_source = "/prompts/customer-renewal-v1.wav"
+
+        with campaign_lock:
+            self.assertNotIn(campaign_id, campaigns)
+
+        # Call the function - should return without changing campaign state
+        simulate_async_execution(
+            campaign_id,
+            numbers,
+            prompt_source
+        )
+
+        # Verify that no state was changed and no campaigns were created
+        with campaign_lock:
+            self.assertNotIn(campaign_id, campaigns)
+
 class CallSimulatorTests(unittest.TestCase):
     def setUp(self):
         self.simulator_app = simulator_app
