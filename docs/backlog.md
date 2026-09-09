@@ -429,3 +429,52 @@ In a future workload update:
 The implementation should remain lightweight and use Python's standard
 threading/queue mechanisms rather than introducing an external task queue or
 message broker.
+
+
+## Concurrent Call Execution
+
+The current Call Simulator processes destination numbers sequentially within
+each campaign execution. As a result, the workload does not explicitly model
+concurrent call execution and `calls_in_progress` provides little useful
+information about worker utilization or saturation.
+
+In a future workload update:
+
+- introduce bounded concurrent execution of simulated calls;
+- use a small, configurable worker pool rather than creating unbounded threads;
+- allow multiple calls to be in progress simultaneously;
+- instrument `calls_in_progress` once concurrency represents a genuine workload
+  characteristic;
+- preserve per-call outcome and duration metrics;
+- allow observability scenarios to demonstrate worker saturation, concurrency,
+  throughput, and their relationship to call and campaign latency.
+
+The implementation should remain deliberately lightweight. Its purpose is to
+create realistic concurrency and saturation behaviour for observability
+exercises rather than reproduce a production telephony execution engine.
+
+## Call Business Outcomes
+
+The current synthetic workload models technical call execution outcomes but
+does not model the business result of a successful contact.
+
+A technically successful call and a successful campaign business outcome are
+different concepts. For example, a future demonstration campaign may invite
+customers to a live product presentation. A connected call may then result in
+the customer accepting, declining, or providing no response.
+
+In a future workload update:
+
+- keep technical call outcomes separate from business responses;
+- model bounded technical outcomes such as `success`, `failed`, and `timeout`;
+- introduce a small bounded set of business responses such as `accepted`,
+  `declined`, and `no_response`;
+- retain per-number results where required to produce a meaningful campaign
+  report;
+- aggregate business responses into the campaign execution result;
+- introduce business-response metrics only when those outcomes exist in the
+  workload.
+
+This distinction should allow observability exercises to separate platform
+reliability from business effectiveness. Technical call success should not be
+treated as equivalent to achieving the campaign's business objective.
