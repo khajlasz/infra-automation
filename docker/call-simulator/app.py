@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 import time
 import random
-from prometheus_client import Gauge, start_http_server
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 app = Flask(__name__)
 
@@ -10,6 +10,18 @@ SERVICE_INFO = Gauge('outdialer_service_info', 'Service information', ['service'
 
 # Set the service info gauge
 SERVICE_INFO.labels(service="call-simulator").set(1)
+
+CALLS_TOTAL = Counter(
+    "calls_total",
+    "Total simulated calls",
+    ["result"],
+)
+
+CALL_DURATION_SECONDS = Histogram(
+    "call_duration_seconds",
+    "Simulated call duration in seconds",
+    buckets=(10, 20, 30, 45, 60, 75, 90),
+)
 
 def get_deterministic_call_result(number, campaign_id):
     """Generate a deterministic synthetic call result.
@@ -23,9 +35,9 @@ def get_deterministic_call_result(number, campaign_id):
     outcome = "successful" if rng.random() < 2 / 3 else "failed"
 
     if outcome == "successful":
-        duration = rng.uniform(0.5, 1.5)
+        duration = rng.uniform(30.0, 90.0)
     else:
-        duration = rng.uniform(1.0, 2.5)
+        duration = rng.uniform(10.0, 45.0)
 
     return outcome, duration
 
@@ -69,12 +81,19 @@ def execute_campaign():
             campaign_id,
         )
 
-        time.sleep(duration)
+        # start_time = time.perf_counter()
+
+        time.sleep(duration / 100)
+
+        # elapsed = time.perf_counter() - start_time
+        CALL_DURATION_SECONDS.observe(duration)
 
         if outcome == "successful":
             successful_count += 1
+            CALLS_TOTAL.labels(result="success").inc()
         else:
             failed_count += 1
+            CALLS_TOTAL.labels(result="failed").inc()
 
     # Return aggregate results
     return jsonify({

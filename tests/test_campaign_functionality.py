@@ -580,7 +580,32 @@ class CallSimulatorTests(unittest.TestCase):
         data = json.loads(response.data.decode())
         results = data["results"] 
         self.assertEqual(results["successful"] + results["failed"], 3)
-        
+
+    def test_call_result_is_deterministic(self):
+        first = simulator_module.get_deterministic_call_result(
+            "+48111111111",
+            "test-campaign-id",
+        )
+
+        second = simulator_module.get_deterministic_call_result(
+            "+48111111111",
+            "test-campaign-id",
+        )
+
+        self.assertEqual(first, second)
+
+    def test_call_duration_is_within_expected_range(self):
+        outcome, duration = simulator_module.get_deterministic_call_result(
+            "+48111111111",
+            "test-campaign-id",
+        )
+
+        if outcome == "successful":
+            self.assertGreaterEqual(duration, 30.0)
+            self.assertLessEqual(duration, 90.0)
+        else:
+            self.assertGreaterEqual(duration, 10.0)
+            self.assertLessEqual(duration, 45.0)
 
 if __name__ == "__main__":
     unittest.main()
