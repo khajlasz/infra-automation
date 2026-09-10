@@ -1,5 +1,7 @@
 # Infrastructure Automation Framework
 
+[![wakatime](https://wakatime.com/badge/user/a1ce8987-7edd-4c00-a0e9-f9b15cd05d24/project/1d9c846a-d8fb-4d80-8588-66fbc7b9f06a.svg)](https://wakatime.com/badge/user/a1ce8987-7edd-4c00-a0e9-f9b15cd05d24/project/1d9c846a-d8fb-4d80-8588-66fbc7b9f06a)
+
 A declarative, model-driven framework for describing distributed platforms once
 and generating deployment-specific artifacts from the same validated Platform
 Model.
