@@ -345,16 +345,137 @@ These transformations must never lose information or change model semantics.
 
 # AI Agent Instructions
 
+## Task Types
+
+Every coding task should be treated as one of the following:
+
+**Implementation**
+
+Add or change requested behaviour. Modify only the components required to
+implement that behaviour and its tests.
+
+**Refactoring**
+
+Improve code structure without changing externally observable behaviour.
+Functionality and existing semantics must remain unchanged.
+
+**Review/Fix**
+
+Address the specified review findings. Do not expand the task into unrelated
+cleanup or redesign.
+
+If the task type is provided in the prompt, preserve that scope throughout the
+work.
+
+---
+
+## Agent Execution Workflow
+
+For implementation work, follow this sequence:
+
+1. Inspect only the files and code paths relevant to the requested change.
+2. Identify the current behaviour and the architectural ownership boundary.
+3. Produce a short implementation plan before editing code.
+4. Make the smallest coherent change that satisfies the task.
+5. Run focused tests for the modified component.
+6. Run the broader relevant test suite after focused tests pass.
+7. Report:
+   - files changed,
+   - behaviour changed,
+   - tests executed and their results,
+   - assumptions made,
+   - follow-up work intentionally left out of scope.
+
+Do not begin implementation before understanding the relevant existing code path.
+If implementation reveals that the agreed plan is insufficient or incorrect,
+stop and update the plan before expanding scope or changing architecture.
+
+---
+
+## Scope Discipline
+
+Do not modify code merely because it is adjacent to the requested change.
+
+In particular:
+
+- do not fix unrelated test failures,
+- do not perform opportunistic refactoring,
+- do not rename unrelated objects,
+- do not reformat untouched code,
+- do not update downstream consumers unless the task explicitly includes them,
+- do not introduce compatibility layers unless requested,
+- do not preserve obsolete behaviour unless compatibility is an explicit
+  requirement.
+
+A temporary incompatibility is acceptable when a task intentionally changes an
+internal contract and downstream adaptation is scheduled as a separate
+milestone.
+
+If a potentially useful improvement is outside the requested scope, report it
+as follow-up work instead of implementing it.
+
+---
+
+## Repository Change Boundaries
+
+Treat the major framework responsibilities as separate architectural layers:
+
+```text
+Platform Model
+    |
+    v
+Validation
+    |
+    v
+Realization
+    |
+    v
+Generators
+    |
+    v
+Generated Artifacts
+```
+A change in one layer does not automatically justify changes in another.
+
+Before modifying another layer, determine whether the requested task explicitly
+requires it.
+
+Examples:
+
+- changing realization structure does not automatically require modifying the Platform Model,
+- changing Platform Model semantics may require corresponding validation changes,
+- generator changes should consume established model and realization contracts,
+- generated artifacts must not become the source of truth.
+
+Keep changes within the ownership boundary of the current task whenever
+possible.
+
+## Testing Strategy
+
+Prefer narrow verification before broad verification.
+
+For a change in a specific component:
+
+1. run its directly related tests,
+2. fix failures caused by the requested change,
+3. run the broader relevant tests,
+4. run the complete test suite when practical.
+
+Do not modify production code solely to make an unrelated test pass.
+
+When reporting completion, include the exact test commands and whether they passed.
+
+If tests cannot be run, state that explicitly. Never infer or claim that tests pass without executing them.
+
 When performing a task:
 
-1. Read the relevant existing model and implementation first.
-2. Preserve architectural intent.
-3. Make only the requested modifications.
-4. Do not silently redesign the model.
-5. If a better design is identified, explain it separately.
-6. Preserve formatting and naming conventions.
-7. Prefer consistency over cleverness.
-8. Run or describe the relevant validation after changes.
+1. Preserve architectural intent.
+2. Make only the requested modifications.
+3. Do not silently redesign the model or realization.
+4. Preserve existing formatting and naming conventions.
+5. Prefer consistency and explicit code over cleverness.
+6. Report architectural improvements separately rather than implementing them implicitly.
+7. Treat passing tests as verification, not as permission to broaden the task.
 
 When refactoring:
 
@@ -396,7 +517,8 @@ A task is complete only if:
 - relevant tests pass,
 - generated artifacts remain deterministic where applicable,
 - documentation reflects architectural changes where necessary,
-- changes are ready to review and commit.
+- changes are ready to review and commit,
+- follow-up work outside the task scope is identified rather than silently implemented.
 
 ---
 
