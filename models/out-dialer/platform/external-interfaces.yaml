@@ -1,0 +1,11 @@
+external_interfaces:
+  metrics:
+    targets:
+      - application: Portal
+        endpoint: metrics
+
+      - application: CampaignManager
+        endpoint: metrics
+
+      - application: CallSimulator
+        endpoint: metrics
