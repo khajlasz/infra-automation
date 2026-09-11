@@ -19,7 +19,11 @@ def load_module(name, path):
 
     sys.modules[name] = module
 
-    with patch("prometheus_client.Gauge"):
+    with (
+        patch("prometheus_client.Gauge"),
+        patch("prometheus_client.Counter"),
+        patch("prometheus_client.Histogram"),
+    ):
         spec.loader.exec_module(module)
 
     return module
@@ -474,6 +478,27 @@ class CampaignManagerTests(unittest.TestCase):
 
         self.assertEqual(status, "failed")
 
+    def test_simulate_async_execution_with_nonexistent_campaign(self):
+        """Test that nonexistent campaign does not create or mutate campaign state."""
+        # This test verifies our fix handles the case where campaign doesn't exist
+        campaign_id = "nonexistent-campaign-id"
+        numbers = ["+48111111111"]
+        prompt_source = "/prompts/customer-renewal-v1.wav"
+
+        with campaign_lock:
+            self.assertNotIn(campaign_id, campaigns)
+
+        # Call the function - should return without changing campaign state
+        simulate_async_execution(
+            campaign_id,
+            numbers,
+            prompt_source
+        )
+
+        # Verify that no state was changed and no campaigns were created
+        with campaign_lock:
+            self.assertNotIn(campaign_id, campaigns)
+
 class CallSimulatorTests(unittest.TestCase):
     def setUp(self):
         self.simulator_app = simulator_app
@@ -555,7 +580,32 @@ class CallSimulatorTests(unittest.TestCase):
         data = json.loads(response.data.decode())
         results = data["results"] 
         self.assertEqual(results["successful"] + results["failed"], 3)
-        
+
+    def test_call_result_is_deterministic(self):
+        first = simulator_module.get_deterministic_call_result(
+            "+48111111111",
+            "test-campaign-id",
+        )
+
+        second = simulator_module.get_deterministic_call_result(
+            "+48111111111",
+            "test-campaign-id",
+        )
+
+        self.assertEqual(first, second)
+
+    def test_call_duration_is_within_expected_range(self):
+        outcome, duration = simulator_module.get_deterministic_call_result(
+            "+48111111111",
+            "test-campaign-id",
+        )
+
+        if outcome == "successful":
+            self.assertGreaterEqual(duration, 30.0)
+            self.assertLessEqual(duration, 90.0)
+        else:
+            self.assertGreaterEqual(duration, 10.0)
+            self.assertLessEqual(duration, 45.0)
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,7 +2,8 @@ from flask import Flask, jsonify, request
 import requests
 import uuid
 import threading
-from prometheus_client import Gauge, start_http_server
+import time
+from prometheus_client import Gauge, Counter, Histogram, start_http_server
 
 app = Flask(__name__)
 
@@ -11,6 +12,11 @@ SERVICE_INFO = Gauge('outdialer_service_info', 'Service information', ['service'
 
 # Set the service info gauge
 SERVICE_INFO.labels(service="campaign-manager").set(1)
+
+# Campaign metrics
+CAMPAIGNS_TOTAL = Counter('campaigns_total', 'Total campaigns executed', ['status'])
+CAMPAIGNS_ACTIVE = Gauge('campaigns_active', 'Number of currently executing campaigns')
+CAMPAIGN_EXECUTION_DURATION_SECONDS = Histogram('campaign_execution_duration_seconds', 'Campaign execution duration in seconds')
 
 # In-memory storage for campaigns (for this milestone)
 campaigns = {}
@@ -21,15 +27,26 @@ template_mapping = {
 
 def simulate_async_execution(campaign_id, numbers, prompt_source):
     """Simulate background execution of a campaign"""
-    # Update campaign status to running
-    with campaign_lock:
-        if campaign_id in campaigns:
-            campaigns[campaign_id]["status"] = "running"
+    # Initialize terminal status to 'failed' as default
+    terminal_status = "failed"
 
-    # Call the simulator - this is where the actual call processing happens
-    simulator_url = "http://call_simulator:8081/execute"
+    # Check if campaign exists and transition to running state before instrumenting
+    with campaign_lock:
+        if campaign_id not in campaigns:
+            # Campaign doesn't exist, return without incrementing metrics
+            return
+
+        # Transition to running state
+        campaigns[campaign_id]["status"] = "running"
+
+    # Only increment active gauge and start timing after confirming campaign exists and is running
+    CAMPAIGNS_ACTIVE.inc()
+    start_time = time.perf_counter()
 
     try:
+        # Call the simulator - this is where the actual call processing happens
+        simulator_url = "http://call_simulator:8081/execute"
+
         execute_response = requests.post(simulator_url, json={
             "campaign_id": campaign_id,
             "numbers": numbers,
@@ -49,10 +66,13 @@ def simulate_async_execution(campaign_id, numbers, prompt_source):
             ):
                 raise ValueError("Invalid Call Simulator response")
 
+            # Update only if campaign exists and mark as completed
             with campaign_lock:
                 if campaign_id in campaigns:
                     campaigns[campaign_id]["status"] = "completed"
                     campaigns[campaign_id]["results"] = result_data["results"]
+                    # Successful execution - change terminal status to completed (inside same lock)
+                    terminal_status = "completed"
         else:
             # If simulator call fails or returns non-200, mark as failed
             with campaign_lock:
@@ -63,6 +83,15 @@ def simulate_async_execution(campaign_id, numbers, prompt_source):
         with campaign_lock:
             if campaign_id in campaigns:
                 campaigns[campaign_id]["status"] = "failed"
+
+    finally:
+        # Decrement active campaigns gauge and record duration
+        CAMPAIGNS_ACTIVE.dec()
+        duration = time.perf_counter() - start_time
+        CAMPAIGN_EXECUTION_DURATION_SECONDS.observe(duration)
+
+        # Increment total counter with the final terminal status (unconditionally)
+        CAMPAIGNS_TOTAL.labels(status=terminal_status).inc()
 
 @app.route('/health', methods=['GET'])
 def health():

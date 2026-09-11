@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 import time
-from prometheus_client import Gauge, start_http_server
+import random
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 app = Flask(__name__)
 
@@ -10,27 +11,35 @@ SERVICE_INFO = Gauge('outdialer_service_info', 'Service information', ['service'
 # Set the service info gauge
 SERVICE_INFO.labels(service="call-simulator").set(1)
 
-def get_deterministic_outcome(number, campaign_id):
-    """Generate deterministic call outcome based on inputs.
+CALLS_TOTAL = Counter(
+    "calls_total",
+    "Total simulated calls",
+    ["result"],
+)
 
-    This is a simple mechanism that provides bounded, testable outcomes.
-    The same number + campaign combination always produces the same result,
-    but different combinations produce varied outcomes.
+CALL_DURATION_SECONDS = Histogram(
+    "call_duration_seconds",
+    "Simulated call duration in seconds",
+    buckets=(10, 20, 30, 45, 60, 75, 90),
+)
+
+def get_deterministic_call_result(number, campaign_id):
+    """Generate a deterministic synthetic call result.
+
+    The same number and campaign combination always produces the same
+    technical outcome and simulated duration.
     """
-    # Create a hash-like value from string characters to get deterministic behavior
-    hash_value = 0
-    for char in number:
-        hash_value = (hash_value * 31 + ord(char)) % 1000
+    seed = f"{campaign_id}:{number}"
+    rng = random.Random(seed)
 
-    # Mix in campaign_id for additional variation
-    campaign_hash = 0
-    for char in campaign_id:
-        campaign_hash = (campaign_hash * 31 + ord(char)) % 1000
+    outcome = "successful" if rng.random() < 2 / 3 else "failed"
 
-    mixed_hash = (hash_value + campaign_hash) % 1000
+    if outcome == "successful":
+        duration = rng.uniform(30.0, 90.0)
+    else:
+        duration = rng.uniform(10.0, 45.0)
 
-    # Return success/failure with ~2/3 chance of success
-    return "successful" if mixed_hash % 3 != 0 else "failed"
+    return outcome, duration
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -61,20 +70,30 @@ def execute_campaign():
     if not isinstance(numbers, list) or len(numbers) == 0:
         return jsonify({"error": "Numbers must be a non-empty array"}), 400
 
-    # Simulate work with delay
-    time.sleep(0.5)
-
     # Count successes and failures deterministically
     successful_count = 0
     failed_count = 0
 
-    # Process each number with deterministic outcomes
+    # Process each number with deterministic outcomes and durations
     for number in numbers:
-        outcome = get_deterministic_outcome(number, campaign_id)
+        outcome, duration = get_deterministic_call_result(
+            number,
+            campaign_id,
+        )
+
+        # start_time = time.perf_counter()
+
+        time.sleep(duration / 100)
+
+        # elapsed = time.perf_counter() - start_time
+        CALL_DURATION_SECONDS.observe(duration)
+
         if outcome == "successful":
             successful_count += 1
+            CALLS_TOTAL.labels(result="success").inc()
         else:
             failed_count += 1
+            CALLS_TOTAL.labels(result="failed").inc()
 
     # Return aggregate results
     return jsonify({
