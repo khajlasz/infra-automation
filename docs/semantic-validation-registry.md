@@ -52,6 +52,8 @@ Examples:
 | REF-001 | Reference Integrity | Node references an existing site | ERROR | Implemented |
 | REF-002 | Reference Integrity | Interface references an existing network | ERROR | Planned |
 | REF-003 | Reference Integrity | Deployment references an existing application | ERROR | Planned |
+| REF-004 | Reference Integrity | External interface target references an existing application | ERROR | Planned |
+| REF-005 | Reference Integrity | External interface target references an existing application endpoint | ERROR | Planned |
 
 ---
 
@@ -171,3 +173,70 @@ ERROR
 
 Planned
 
+## REF-004
+
+### Title
+
+External interface target references an existing application.
+
+### Purpose
+
+Ensure every external interface target references an application defined in the model.
+
+### Source
+
+`model.platform.external_interfaces[*].targets[*].application`
+
+### Target
+
+`model.application.applications`
+
+### Validation
+
+Every external interface target SHALL reference an existing application.
+
+### Error Message
+
+```text
+REF-004: External interface '{interface}' references unknown application '{application}'.
+```
+### Severity
+
+ERROR
+
+### Status
+
+Planned
+
+## REF-005
+### Title
+
+External interface target references an existing application endpoint.
+
+### Purpose
+
+Ensure every external interface target references an endpoint defined by the referenced application.
+
+### Source
+
+`model.platform.external_interfaces[*].targets[*].endpoint`
+
+Target
+
+`model.application.applications[*].endpoints`
+
+### Validation
+
+Every external interface target SHALL reference an endpoint defined by its referenced application.
+
+Error Message
+```text
+REF-005: External interface '{interface}' references unknown endpoint '{endpoint}' on application '{application}'.
+```
+### Severity
+
+ERROR
+
+### Status
+
+Planned
