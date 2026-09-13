@@ -33,6 +33,8 @@ def validate_model(model_directory: Path) -> None:
         _validate_ref_003,
         _validate_ref_004,
         _validate_ref_005,
+        _validate_ref_006,
+        _validate_ref_007,
     ]
     
     for rule in RULES:
@@ -202,4 +204,75 @@ def _validate_ref_005(model) -> None:
                     f"REF-005: External interface '{interface_name}' references "
                     f"unknown endpoint '{endpoint_name}' on application "
                     f"'{application_name}'"
+                )
+
+def _validate_ref_006(model) -> None:
+    """Validate REF-006: External interface references an existing source network.
+
+    Every external interface SHALL reference an existing source network.
+
+    Args:
+        model: The loaded platform model
+
+    Raises:
+        ModelError: If any external interface references a non-existing
+        source network
+    """
+    logger.info("Running REF-006 validation")
+
+    available_networks = set(model.network.networks.keys())
+    external_interfaces = model.platform.data.get("external_interfaces", {})
+
+    for interface_name, external_interface in external_interfaces.items():
+        network_ref = external_interface.get("sourceNetwork")
+
+        if network_ref not in available_networks:
+            logger.error(
+                "REF-006: External interface '%s' references unknown "
+                "source network '%s'",
+                interface_name,
+                network_ref,
+            )
+            raise ModelError(
+                f"REF-006: External interface '{interface_name}' references "
+                f"unknown source network '{network_ref}'"
+            )
+
+
+def _validate_ref_007(model) -> None:
+    """Validate REF-007: External interface target references an existing network.
+
+    Every external interface target SHALL reference an existing network.
+
+    Args:
+        model: The loaded platform model
+
+    Raises:
+        ModelError: If any external interface target references a
+        non-existing network
+    """
+    logger.info("Running REF-007 validation")
+
+    available_networks = set(model.network.networks.keys())
+    external_interfaces = model.platform.data.get("external_interfaces", {})
+
+    for interface_name, external_interface in external_interfaces.items():
+        for target in external_interface.get("targets", []):
+            application_name = target.get("application")
+            endpoint_name = target.get("endpoint")
+            network_ref = target.get("network")
+
+            if network_ref not in available_networks:
+                logger.error(
+                    "REF-007: External interface '%s' target '%s.%s' "
+                    "references unknown network '%s'",
+                    interface_name,
+                    application_name,
+                    endpoint_name,
+                    network_ref,
+                )
+                raise ModelError(
+                    f"REF-007: External interface '{interface_name}' target "
+                    f"'{application_name}.{endpoint_name}' references unknown "
+                    f"network '{network_ref}'"
                 )

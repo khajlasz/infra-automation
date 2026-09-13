@@ -17,3 +17,8 @@ networks:
     purpose: Database communication
     subnet:
       cidr: 10.10.30.0/24
+
+  observability:
+    site: lab
+    subnet:
+      cidr: 10.10.40.0/24

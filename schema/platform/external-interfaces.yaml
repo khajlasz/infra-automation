@@ -2,9 +2,11 @@ external_interfaces: map(include('external_interface'))
 
 ---
 external_interface:
+  sourceNetwork: str()
   targets: list(include('external_interface_target'))
 
 ---
 external_interface_target:
   application: str()
   endpoint: str()
+  network: str()

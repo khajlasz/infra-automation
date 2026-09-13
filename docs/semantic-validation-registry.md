@@ -240,3 +240,75 @@ ERROR
 ### Status
 
 Planned
+
+## REF-006
+
+### Title
+
+External interface references an existing source network.
+
+### Purpose
+
+Ensure every external interface source network is defined in the platform model.
+
+### Source
+
+`model.platform.external_interfaces[*].sourceNetwork`
+
+### Target
+
+`model.network.networks`
+
+### Validation
+
+Every external interface SHALL reference an existing source network.
+
+### Error Message
+
+```text
+REF-006: External interface '{interface}' references unknown source network '{network}'.
+```
+
+### Severity
+
+ERROR
+
+### Status
+
+Planned
+
+## REF-007
+
+### Title
+
+External interface target references an existing network.
+
+### Purpose
+
+Ensure every external interface target is associated with a network defined in the platform model.
+
+### Source
+
+`model.platform.external_interfaces[*].targets[*].network`
+
+### Target
+
+`model.network.networks`
+
+### Validation
+
+Every external interface target SHALL reference an existing network.
+
+### Error Message
+
+```text
+REF-007: External interface '{interface}' target '{application}.{endpoint}' references unknown network '{network}'.
+Severity
+```
+### Severity
+
+ERROR
+
+### Status
+
+Planned

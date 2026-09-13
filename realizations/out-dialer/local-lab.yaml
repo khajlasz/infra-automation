@@ -3,6 +3,12 @@ name: local-lab
 docker:
   hosts:
     workload:
+      nodes:
+        - portal
+        - campaign
+        - call_simulator
+        - database
+
       networkDriver: macvlan
       networks:
         dmz:
@@ -23,15 +29,6 @@ docker:
             offset: 128
             prefixLength: 28
 
-    observability:
-      networkDriver: macvlan
-      networks:
-        observability:
-          parent: enp0s2
-          ipam:
-            offset: 128
-            prefixLength: 28
-
 routeros:
   interfaces:
     dmz:
@@ -40,3 +37,5 @@ routeros:
       physicalInterface: ether2
     database:
       physicalInterface: ether3
+    observability:
+      physicalInterface: ether4

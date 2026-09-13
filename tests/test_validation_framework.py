@@ -9,12 +9,14 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from loader import Loader
 from model import ModelError
 from validation import validate_model
-from validation.framework import (
+from src.validation.framework import (
     _validate_ref_001,
     _validate_ref_002,
     _validate_ref_003,
     _validate_ref_004,
     _validate_ref_005,
+    _validate_ref_006,
+    _validate_ref_007,
 )
 
 
@@ -103,6 +105,42 @@ class SemanticValidationTests(unittest.TestCase):
         ] = "UnknownApplication"
 
         _validate_ref_005(model)
+
+    def test_ref_006_rejects_unknown_external_interface_source_network(
+        self,
+    ) -> None:
+        model = Loader().load(self.out_dialer_model_directory)
+
+        model.platform.data["external_interfaces"]["metrics"][
+            "sourceNetwork"
+        ] = "unknown-network"
+
+        with self.assertRaisesRegex(
+            ModelError,
+            (
+                r"REF-006: External interface 'metrics' references "
+                r"unknown source network 'unknown-network'"
+            ),
+        ):
+            _validate_ref_006(model)
+
+    def test_ref_007_rejects_unknown_external_interface_target_network(
+        self,
+    ) -> None:
+        model = Loader().load(self.out_dialer_model_directory)
+
+        model.platform.data["external_interfaces"]["metrics"]["targets"][0][
+            "network"
+        ] = "unknown-network"
+
+        with self.assertRaisesRegex(
+            ModelError,
+            (
+                r"REF-007: External interface 'metrics' target "
+                r"'Portal.metrics' references unknown network 'unknown-network'"
+            ),
+        ):
+            _validate_ref_007(model)
 
 if __name__ == "__main__":
     unittest.main()
