@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from loader import Loader
 from model import ModelError
 from validation import validate_model
+from realization import load_realization
 from src.validation.framework import (
     _validate_ref_001,
     _validate_ref_002,
@@ -17,6 +18,10 @@ from src.validation.framework import (
     _validate_ref_005,
     _validate_ref_006,
     _validate_ref_007,
+    _validate_ref_008,
+    _validate_ref_009,
+    validate_realization_references,
+
 )
 
 
@@ -25,6 +30,12 @@ class SemanticValidationTests(unittest.TestCase):
         self.repo_root = Path(__file__).parents[1]
         self.minimal_model_directory = self.repo_root / "models" / "minimal"
         self.out_dialer_model_directory = self.repo_root / "models" / "out-dialer"
+        self.out_dialer_realization = (
+            self.repo_root
+            / "realizations"
+            / "out-dialer"
+            / "local-lab.yaml"
+        )
 
     def test_validates_model_with_correct_references(self) -> None:
         """Test that a valid model passes semantic validation."""
@@ -141,6 +152,46 @@ class SemanticValidationTests(unittest.TestCase):
             ),
         ):
             _validate_ref_007(model)
+
+    def test_ref_008_rejects_unknown_compute_node(self) -> None:
+        model = Loader().load(self.out_dialer_model_directory)
+        realization = load_realization(self.out_dialer_realization)
+
+        realization.docker["hosts"]["workload"]["nodes"].append(
+            "unknown-node"
+        )
+
+        with self.assertRaisesRegex(
+            ModelError,
+            (
+                r"REF-008: Docker host 'workload' references "
+                r"unknown compute node 'unknown-node'"
+            ),
+        ):
+            _validate_ref_008(model, realization)
+
+    def test_ref_009_rejects_duplicate_compute_node_placement(self) -> None:
+        model = Loader().load(self.out_dialer_model_directory)
+        realization = load_realization(self.out_dialer_realization)
+
+        realization.docker["hosts"]["second-host"] = {
+            "nodes": ["portal"],
+        }
+
+        with self.assertRaisesRegex(
+            ModelError,
+            (
+                r"REF-009: Compute node 'portal' is assigned to multiple "
+                r"Docker hosts: 'workload' and 'second-host'"
+            ),
+        ):
+            _validate_ref_009(model, realization)
+
+    def test_validates_realization_with_correct_references(self) -> None:
+        model = Loader().load(self.out_dialer_model_directory)
+        realization = load_realization(self.out_dialer_realization)
+
+        validate_realization_references(model, realization)
 
 if __name__ == "__main__":
     unittest.main()

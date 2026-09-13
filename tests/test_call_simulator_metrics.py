@@ -57,6 +57,7 @@ SERVICE_INFO = simulator_module.SERVICE_INFO
 CALLS_TOTAL = simulator_module.CALLS_TOTAL
 CALL_DURATION_SECONDS = simulator_module.CALL_DURATION_SECONDS
 
+
 def get_counter_value(result):
     metric = CALLS_TOTAL.labels(result=result)
 
@@ -75,6 +76,7 @@ def get_histogram_count():
                 return sample.value
 
     return 0.0
+
 
 class CallSimulatorMetricsTests(unittest.TestCase):
 

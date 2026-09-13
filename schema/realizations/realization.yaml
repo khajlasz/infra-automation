@@ -8,6 +8,7 @@ docker:
 
 ---
 docker_host:
+  nodes: list(str())
   networkDriver: str(required=False)
   networks: map(include('docker_network'), required=False)
 

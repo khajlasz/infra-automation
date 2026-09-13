@@ -27,7 +27,7 @@ def validate_model(model_directory: Path) -> None:
     logger.info("Starting semantic validation")
     
     # Simple rule registry - execute rules in order
-    RULES = [
+    rules = [
         _validate_ref_001,
         _validate_ref_002,
         _validate_ref_003,
@@ -36,11 +36,33 @@ def validate_model(model_directory: Path) -> None:
         _validate_ref_006,
         _validate_ref_007,
     ]
-    
-    for rule in RULES:
+
+    for rule in rules:
         rule(model)
     
     logger.info("Semantic validation completed successfully")
+
+def validate_realization_references(model, realization) -> None:
+    """Validate semantic references between a model and its realization.
+
+    Args:
+        model: The loaded platform model
+        realization: The loaded realization
+
+    Raises:
+        ModelError: If any realization reference rule fails
+    """
+    logger.info("Starting realization semantic validation")
+
+    realization_rules = [
+        _validate_ref_008,
+        _validate_ref_009,
+]
+
+    for rule in realization_rules:
+        rule(model, realization)
+
+    logger.info("Realization semantic validation completed successfully")
 
 
 def _validate_ref_001(model) -> None:
@@ -276,3 +298,69 @@ def _validate_ref_007(model) -> None:
                     f"'{application_name}.{endpoint_name}' references unknown "
                     f"network '{network_ref}'"
                 )
+
+def _validate_ref_008(model, realization) -> None:
+    """Validate REF-008: Docker host references existing compute nodes.
+
+    Every node assigned to a Docker host SHALL reference an existing
+    compute node.
+
+    Args:
+        model: The loaded platform model
+        realization: The loaded realization
+
+    Raises:
+        ModelError: If a Docker host references an unknown compute node
+    """
+    logger.info("Running REF-008 validation")
+
+    available_nodes = set(model.compute.nodes.keys())
+    docker_hosts = realization.docker.get("hosts", {})
+
+    for host_name, host in docker_hosts.items():
+        for node_name in host.get("nodes", []):
+            if node_name not in available_nodes:
+                logger.error(
+                    "REF-008: Docker host '%s' references unknown "
+                    "compute node '%s'",
+                    host_name,
+                    node_name,
+                )
+                raise ModelError(
+                    f"REF-008: Docker host '{host_name}' references "
+                    f"unknown compute node '{node_name}'"
+                )
+
+def _validate_ref_009(model, realization) -> None:
+    """Validate REF-009: Compute node is assigned to at most one Docker host.
+
+    Args:
+        model: The loaded platform model
+        realization: The loaded realization
+
+    Raises:
+        ModelError: If a compute node is assigned to multiple Docker hosts
+    """
+    logger.info("Running REF-009 validation")
+
+    docker_hosts = realization.docker.get("hosts", {})
+    placements = {}
+
+    for host_name, host in docker_hosts.items():
+        for node_name in host.get("nodes", []):
+            if node_name in placements:
+                first_host = placements[node_name]
+
+                logger.error(
+                    "REF-009: Compute node '%s' is assigned to multiple "
+                    "Docker hosts: '%s' and '%s'",
+                    node_name,
+                    first_host,
+                    host_name,
+                )
+                raise ModelError(
+                    f"REF-009: Compute node '{node_name}' is assigned to "
+                    f"multiple Docker hosts: '{first_host}' and '{host_name}'"
+                )
+
+            placements[node_name] = host_name

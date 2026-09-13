@@ -312,3 +312,74 @@ ERROR
 ### Status
 
 Planned
+
+## REF-008
+
+### Title
+
+Docker host references existing compute nodes.
+
+### Purpose
+
+Ensure every compute node assigned to a Docker realization host exists in the Platform Model.
+
+### Source
+
+`realization.docker.hosts[*].nodes[*]`
+
+### Target
+
+`model.compute.nodes`
+
+### Validation
+
+Every node assigned to a Docker host SHALL reference an existing compute node.
+
+### Error Message
+
+```text
+REF-008: Docker host '{host}' references unknown compute node '{node}'.
+```
+
+### Severity
+
+ERROR
+
+### Status
+
+Planned
+
+## REF-009
+
+### Title
+
+Compute node is assigned to at most one Docker host.
+
+### Purpose
+
+Prevent ambiguous Docker placement by ensuring that a compute node is not assigned to multiple Docker realization hosts.
+
+### Source
+
+`realization.docker.hosts[*].nodes[*]`
+
+### Target
+
+Docker host placement set
+
+### Validation
+
+Each compute node SHALL appear in at most one Docker host placement list.
+
+### Error Message
+
+```text
+REF-009: Compute node '{node}' is assigned to multiple Docker hosts: '{first_host}' and '{second_host}'.
+```
+### Severity
+
+ERROR
+
+### Status
+
+Planned
