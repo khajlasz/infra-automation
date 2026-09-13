@@ -4,40 +4,50 @@ import sys
 from pathlib import Path
 import unittest
 
-from realization.loader import load_realization
-
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from generators.docker_compose import DockerComposeGenerator
 from loader import Loader
+from realization.loader import load_realization
 
 
 class DockerComposeGeneratorTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.model_directory = Path(__file__).parents[1] / "models" / "minimal"
+        self.model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
         self.loader = Loader()
         self.generator = DockerComposeGenerator()
+        self.realization = load_realization(
+            Path(__file__).parents[1] / "realizations" / "out-dialer" / "local-lab.yaml"
+        )
 
     def test_generate_creates_services_section(self) -> None:
         model = self.loader.load(self.model_directory)
-        result = self.generator.generate(model)
+        result = self.generator.generate(model, self.realization)["workload"]
         
         self.assertIn("services", result)
         self.assertIsInstance(result["services"], dict)
 
     def test_generate_includes_all_nodes_as_services(self) -> None:
         model = self.loader.load(self.model_directory)
-        result = self.generator.generate(model)
+        result = self.generator.generate(model, self.realization)["workload"]
         
-        # Should create a service entry for each node
-        self.assertIn("node1", result["services"])
-        self.assertEqual(len(result["services"]), 1)
+        # Should create a service entry for each node assigned to the workload host
+        self.assertEqual(
+            set(result["services"]),
+            set(self.realization.docker["hosts"]["workload"]["nodes"]),
+        )
+
+    def test_generate_returns_one_spec_per_realized_host(self) -> None:
+        model = self.loader.load(self.model_directory)
+        specs = self.generator.generate(model, self.realization)
+
+        self.assertEqual(set(specs), {"workload"})
 
     def test_generate_with_out_dialer_model(self) -> None:
         """Test generator with out-dialer model that has multiple nodes."""
         model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
         model = self.loader.load(model_directory)
-        result = self.generator.generate(model)
+        result = self.generator.generate(model, self.realization)["workload"]
         
         # Should create services for each node in the model
         expected_nodes = set(model.compute.nodes.keys())
@@ -50,7 +60,7 @@ class DockerComposeGeneratorTests(unittest.TestCase):
         """Test that Docker images are generated correctly from model data."""
         model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
         model = self.loader.load(model_directory)
-        result = self.generator.generate(model)
+        result = self.generator.generate(model, self.realization)["workload"]
         
         # Verify image names are correctly derived from the model
         for node_name, node in model.compute.nodes.items():
@@ -75,7 +85,7 @@ class DockerComposeGeneratorTests(unittest.TestCase):
         """Test that Docker hostnames are generated correctly from compute node names."""
         model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
         model = self.loader.load(model_directory)
-        result = self.generator.generate(model)
+        result = self.generator.generate(model, self.realization)["workload"]
         
         # Verify that each service has a hostname equal to its node name
         for node_name, node in model.compute.nodes.items():
@@ -87,7 +97,7 @@ class DockerComposeGeneratorTests(unittest.TestCase):
         """Test that Docker Compose networks are generated from compute node interfaces."""
         model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
         model = self.loader.load(model_directory)
-        result = self.generator.generate(model)
+        result = self.generator.generate(model, self.realization)["workload"]
         
         # Test each service for expected networks
         expected_networks = {
@@ -107,7 +117,7 @@ class DockerComposeGeneratorTests(unittest.TestCase):
         """Test that Docker Compose ports are generated from application endpoints."""
         model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
         model = self.loader.load(model_directory)
-        result = self.generator.generate(model)
+        result = self.generator.generate(model, self.realization)["workload"]
         
         # Define expected ports based on the model
         expected_ports = {
@@ -129,7 +139,7 @@ class DockerComposeGeneratorTests(unittest.TestCase):
     def test_serialize_returns_valid_yaml(self) -> None:
         """Test that serialize() returns valid YAML starting with services:."""
         model = self.loader.load(self.model_directory)
-        compose_spec = self.generator.generate(model)
+        compose_spec = self.generator.generate(model, self.realization)["workload"]
         yaml_output = self.generator.serialize(compose_spec)
         
         # Should start with "services:"
@@ -138,7 +148,7 @@ class DockerComposeGeneratorTests(unittest.TestCase):
     def test_serialize_includes_services_section(self) -> None:
         """Test that serialized output includes services section."""
         model = self.loader.load(self.model_directory)
-        compose_spec = self.generator.generate(model)
+        compose_spec = self.generator.generate(model, self.realization)["workload"]
         yaml_output = self.generator.serialize(compose_spec)
         
         # Should contain "services:" 
@@ -148,7 +158,7 @@ class DockerComposeGeneratorTests(unittest.TestCase):
         """Test that serialized output contains expected service names."""
         model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
         model = self.loader.load(model_directory)
-        compose_spec = self.generator.generate(model)
+        compose_spec = self.generator.generate(model, self.realization)["workload"]
         yaml_output = self.generator.serialize(compose_spec)
         
         # Should contain all expected node names from the model
@@ -160,7 +170,7 @@ class DockerComposeGeneratorTests(unittest.TestCase):
         """Test that serialized output contains image, hostname, networks and ports."""
         model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
         model = self.loader.load(model_directory)
-        compose_spec = self.generator.generate(model)
+        compose_spec = self.generator.generate(model, self.realization)["workload"]
         yaml_output = self.generator.serialize(compose_spec)
         
         # Check that the output contains various expected elements
@@ -173,20 +183,25 @@ class DockerComposeGeneratorTests(unittest.TestCase):
         """Test that the top-level networks section is generated."""
         model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
         model = self.loader.load(model_directory)
-        result = self.generator.generate(model)
+        result = self.generator.generate(model, self.realization)["workload"]
         
         # Should have a networks section at the top level
         self.assertIn("networks", result)
         self.assertIsInstance(result["networks"], dict)
 
     def test_generate_networks_from_model(self) -> None:
-        """Test that all platform model networks appear in the Docker Compose networks."""
+        """Test that networks required by the realized nodes appear in Compose."""
         model_directory = Path(__file__).parents[1] / "models" / "out-dialer"
         model = self.loader.load(model_directory)
-        result = self.generator.generate(model)
+        result = self.generator.generate(model, self.realization)["workload"]
         
-        # Get expected network names from the model
-        expected_networks = set(model.network.networks.keys())
+        # Get networks used by nodes assigned to this Docker host
+        node_names = self.realization.docker["hosts"]["workload"]["nodes"]
+        expected_networks = {
+            interface["network"]
+            for node_name in node_names
+            for interface in model.compute.nodes[node_name]["interfaces"].values()
+        }
         
         # Get actual network names from generated spec
         actual_networks = set(result["networks"].keys())
@@ -195,11 +210,12 @@ class DockerComposeGeneratorTests(unittest.TestCase):
         self.assertEqual(actual_networks, expected_networks)
         self.assertEqual(len(actual_networks), len(expected_networks))
         
-        # Each network should be empty (no extra attributes)
+        # Each required network should have its realized Compose configuration
         for network_name in actual_networks:
             self.assertIn(network_name, result["networks"])
             self.assertIsInstance(result["networks"][network_name], dict)
-            self.assertEqual(len(result["networks"][network_name]), 0)
+            self.assertEqual(result["networks"][network_name]["driver"], "macvlan")
+            self.assertIn("ipam", result["networks"][network_name])
 
     def test_generate_networks_with_local_lab_realization(self) -> None:
         model = Loader().load(Path("models/out-dialer"))
@@ -207,7 +223,7 @@ class DockerComposeGeneratorTests(unittest.TestCase):
             Path("realizations/out-dialer/local-lab.yaml")
         )
 
-        spec = DockerComposeGenerator().generate(model, realization)
+        spec = DockerComposeGenerator().generate(model, realization)["workload"]
 
         assert spec["networks"]["dmz"]["driver"] == "macvlan"
         assert spec["networks"]["dmz"]["name"] == "dmz-net"
