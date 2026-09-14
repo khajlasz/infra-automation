@@ -132,6 +132,48 @@ def test_generate_routeros_interfaces_and_gateways():
         "comment": "LAB: deny other inter-zone traffic",
     }
 
+
+def test_firewall_terminal_deny_follows_distinct_external_rules():
+    model = Loader().load(Path("models/out-dialer"))
+    realization = load_realization(Path("realizations/out-dialer/local-lab.yaml"))
+    model.platform.external_interfaces["portal"] = {
+        "sourceNetwork": "observability",
+        "targets": [
+            {"application": "Portal", "endpoint": "https", "network": "internal"}
+        ],
+    }
+
+    resources = TerraformRouterOSGenerator().generate(model, realization)["resource"]
+    filters = resources["routeros_ip_firewall_filter"]
+
+    assert list(filters) == [
+        "allow_established_related",
+        "drop_invalid",
+        "allow_dmz_to_internal",
+        "allow_internal_to_database",
+        "allow_metrics_observability_to_internal",
+        "allow_portal_observability_to_internal",
+        "deny_other_interzone",
+    ]
+
+
+def test_firewall_rules_exist_without_external_targets():
+    model = Loader().load(Path("models/out-dialer"))
+    realization = load_realization(Path("realizations/out-dialer/local-lab.yaml"))
+    model.platform.external_interfaces["metrics"]["targets"] = []
+
+    resources = TerraformRouterOSGenerator().generate(model, realization)["resource"]
+    filters = resources["routeros_ip_firewall_filter"]
+
+    assert list(filters) == [
+        "allow_established_related",
+        "drop_invalid",
+        "allow_dmz_to_internal",
+        "allow_internal_to_database",
+        "deny_other_interzone",
+    ]
+
+
 def test_serialize_returns_terraform_hcl():
     model = Loader().load(Path("models/out-dialer"))
     realization = load_realization(

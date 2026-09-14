@@ -163,18 +163,18 @@ class TerraformRouterOSGenerator:
                     ),
                 }
 
-                # RouterOS backend enforcement: deny any remaining inter-zone traffic.
-                filters["deny_other_interzone"] = {
-                    "chain": "forward",
-                    "action": "drop",
-                    "src_address_list": "lab-networks",
-                    "dst_address_list": "lab-networks",
-                    "log": True,
-                    "log_prefix": "LAB-DENY ",
-                    "comment": "LAB: deny other inter-zone traffic",
-                }
+        # RouterOS backend enforcement: deny any remaining inter-zone traffic.
+        filters["deny_other_interzone"] = {
+            "chain": "forward",
+            "action": "drop",
+            "src_address_list": "lab-networks",
+            "dst_address_list": "lab-networks",
+            "log": True,
+            "log_prefix": "LAB-DENY ",
+            "comment": "LAB: deny other inter-zone traffic",
+        }
 
-                resources["routeros_ip_firewall_filter"] = filters
+        resources["routeros_ip_firewall_filter"] = filters
 
     def generate(
         self,
