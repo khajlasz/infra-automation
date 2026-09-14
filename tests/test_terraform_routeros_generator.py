@@ -78,6 +78,7 @@ def test_generate_routeros_interfaces_and_gateways():
         "drop_invalid",
         "allow_dmz_to_internal",
         "allow_internal_to_database",
+        "allow_metrics_observability_to_internal",
         "deny_other_interzone",
     ]
 
@@ -111,6 +112,16 @@ def test_generate_routeros_interfaces_and_gateways():
         "comment": "Allow Internal traffic to Database network",
     }
 
+    assert filters["allow_metrics_observability_to_internal"] == {
+        "chain": "forward",
+        "action": "accept",
+        "src_address": "10.10.40.0/24",
+        "dst_address": "10.10.20.0/24",
+        "protocol": "tcp",
+        "dst_port": "9090",
+        "comment": "Allow metrics access from Observability to Internal",
+    }
+
     assert filters["deny_other_interzone"] == {
         "chain": "forward",
         "action": "drop",
@@ -141,8 +152,21 @@ def test_serialize_returns_terraform_hcl():
         'resource "routeros_ip_firewall_filter" "allow_dmz_to_internal" {'
         in result
     )
+
     assert 'src_address = "10.10.10.0/24"' in result
     assert 'dst_address = "10.10.20.0/24"' in result
+
+    assert (
+        'resource "routeros_ip_firewall_filter" '
+        '"allow_metrics_observability_to_internal" {'
+        in result
+    )
+
+    assert 'src_address = "10.10.40.0/24"' in result
+    assert 'dst_address = "10.10.20.0/24"' in result
+    assert 'protocol = "tcp"' in result
+    assert 'dst_port = "9090"' in result
+
 
     assert 'resource "routeros_ip_firewall_filter" "deny_other_interzone" {' in result
     assert "log = true" in result

@@ -108,18 +108,73 @@ class TerraformRouterOSGenerator:
                 "comment": policy["description"],
             }
 
-        # RouterOS backend enforcement: deny any remaining inter-zone traffic.
-        filters["deny_other_interzone"] = {
-            "chain": "forward",
-            "action": "drop",
-            "src_address_list": "lab-networks",
-            "dst_address_list": "lab-networks",
-            "log": True,
-            "log_prefix": "LAB-DENY ",
-            "comment": "LAB: deny other inter-zone traffic",
+        protocol_map = {
+            "HTTP": "tcp",
+            "HTTPS": "tcp",
+            "TCP": "tcp",
         }
 
-        resources["routeros_ip_firewall_filter"] = filters
+        generated_external_rules: set[tuple[str, str, str, str]] = set()
+
+        for interface_name, external_interface in model.platform.external_interfaces.items():
+            source_network_name = external_interface["sourceNetwork"]
+            source_network = model.network.networks[source_network_name]
+            source = resolve_network(source_network["subnet"]["cidr"])
+
+            for target in external_interface["targets"]:
+                application = model.application.applications[target["application"]]
+                endpoint = application["endpoints"][target["endpoint"]]
+
+                destination_network_name = target["network"]
+                destination_network = model.network.networks[destination_network_name]
+                destination = resolve_network(destination_network["subnet"]["cidr"])
+
+                protocol = protocol_map[endpoint["protocol"]]
+                port = str(endpoint["port"])
+
+                rule_key = (
+                    source["subnet"],
+                    destination["subnet"],
+                    protocol,
+                    port,
+                )
+
+                if rule_key in generated_external_rules:
+                    continue
+
+                generated_external_rules.add(rule_key)
+
+                terraform_name = (
+                    f"allow_{interface_name}_"
+                    f"{source_network_name}_to_{destination_network_name}"
+                ).replace("-", "_")
+
+                filters[terraform_name] = {
+                    "chain": "forward",
+                    "action": "accept",
+                    "src_address": source["subnet"],
+                    "dst_address": destination["subnet"],
+                    "protocol": protocol,
+                    "dst_port": port,
+                    "comment": (
+                        f"Allow {interface_name} access from "
+                        f"{self._display_name(source_network_name)} to "
+                        f"{self._display_name(destination_network_name)}"
+                    ),
+                }
+
+                # RouterOS backend enforcement: deny any remaining inter-zone traffic.
+                filters["deny_other_interzone"] = {
+                    "chain": "forward",
+                    "action": "drop",
+                    "src_address_list": "lab-networks",
+                    "dst_address_list": "lab-networks",
+                    "log": True,
+                    "log_prefix": "LAB-DENY ",
+                    "comment": "LAB: deny other inter-zone traffic",
+                }
+
+                resources["routeros_ip_firewall_filter"] = filters
 
     def generate(
         self,
