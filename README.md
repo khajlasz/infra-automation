@@ -120,9 +120,18 @@ PYTHONPATH=src .venv/bin/python src/cli.py \
 The generated artifact has been validated with Docker Compose and used to
 create the modeled network topology and start application containers.
 
-When a deployment realization is supplied, the generator also resolves the
-local-lab macvlan driver, parent interfaces and IPAM subnets. Model-only
-generation remains available for simpler use cases.
+Docker Compose generation requires a deployment realization. The realization
+defines Docker hosts, compute-node placement, and host-specific network
+configuration.
+
+The generator produces one Compose specification for each Docker host containing
+assigned compute nodes. For each host, it derives the services from node
+placement and resolves the Docker network driver, parent interfaces and IPAM
+configuration from the realization.
+
+For the `local-lab` realization, the generated artifact is:
+
+`docker-compose.workload.yaml`
 
 ### Terraform / RouterOS Backend
 
@@ -143,26 +152,37 @@ provision the CHR virtual machine itself.
 
 ## CLI
 
-Validate a model:
+### Validate a model:
 
 ```bash
 PYTHONPATH=src .venv/bin/python src/cli.py \
     validate models/out-dialer
 ```
 
-Generate Docker Compose:
+### Generate Docker Compose
+
+Docker Compose generation requires a deployment realization. The realization
+defines Docker hosts, compute-node placement, and host-specific network
+configuration.
 
 ```bash
-PYTHONPATH=src .venv/bin/python src/cli.py \
-    generate docker-compose \
-    models/out-dialer \
-    --realization realizations/out-dialer/local-lab.yaml \
-    --output docker-compose.yaml
+python src/cli.py generate docker-compose \
+  models/out-dialer \
+  --realization realizations/out-dialer/local-lab.yaml \
+  --output docker-compose.yaml
 ```
+The `--output` path is used as the base artifact name. One Compose file is
+generated for each Docker host containing assigned compute nodes.
 
-The `--realization` option is optional for Docker Compose generation.
+For example, with:
 
-Generate RouterOS Terraform:
+`--output docker-compose.yaml`
+
+the `local-lab` realization produces:
+
+`docker-compose.workload.yaml`
+
+### Generate RouterOS Terraform:
 
 ```bash
 PYTHONPATH=src .venv/bin/python src/cli.py \
@@ -172,10 +192,10 @@ PYTHONPATH=src .venv/bin/python src/cli.py \
     --output generated.tf
 ```
 
-Validate the generated artifact:
+### Validate the generated artifact:
 
 ```bash
-docker compose -f docker-compose.yaml config
+docker compose -f docker-compose.workload.yaml config
 ```
 
 ---
