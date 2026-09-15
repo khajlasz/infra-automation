@@ -1,8 +1,16 @@
+from dataclasses import dataclass
 from typing import Any
 
 from model.model import PlatformModel
 from realization.model import Realization
 from realization.resolver import resolve_network
+
+
+@dataclass(frozen=True)
+class TerraformReference:
+    resource_type: str
+    resource_name: str
+    attribute: str
 
 
 class TerraformRouterOSGenerator:
@@ -156,6 +164,9 @@ class TerraformRouterOSGenerator:
                     "dst_address": destination["subnet"],
                     "protocol": protocol,
                     "dst_port": port,
+                    "place_before": TerraformReference(
+                        "routeros_ip_firewall_filter", "deny_other_interzone", "id"
+                    ),
                     "comment": (
                         f"Allow {interface_name} access from "
                         f"{self._display_name(source_network_name)} to "
@@ -206,6 +217,10 @@ class TerraformRouterOSGenerator:
                 for key, value in attributes.items():
                     if isinstance(value, bool):
                         rendered_value = "true" if value else "false"
+                    elif isinstance(value, TerraformReference):
+                        rendered_value = (
+                            f"{value.resource_type}.{value.resource_name}.{value.attribute}"
+                        )
                     elif isinstance(value, str):
                         escaped_value = value.replace("\\", "\\\\").replace('"', '\\"')
                         rendered_value = f'"{escaped_value}"'
