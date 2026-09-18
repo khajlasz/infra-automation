@@ -13,6 +13,7 @@ on:
       - "lab/terraform/**"
       - "pyproject.toml"
       - ".github/workflows/**"
+      - "observability/**"
 
   workflow_dispatch:
 
@@ -52,7 +53,7 @@ jobs:
             --output /tmp/generated-infrastructure/docker-compose.yaml
 
       - name: Validate Docker Compose
-        run: docker compose -f /tmp/generated-infrastructure/docker-compose.yaml config
+        run: docker compose -f /tmp/generated-infrastructure/docker-compose.workload.yaml config
 
       - name: Generate RouterOS Terraform
         run: |
@@ -75,6 +76,9 @@ jobs:
       - name: Format generated Terraform
         working-directory: lab/terraform/routeros
         run: terraform fmt generated.tf
+
+      - name: Check generated Terraform is up to date
+        run: git diff --exit-code -- lab/terraform/routeros/generated.tf
 
       - name: Validate Terraform
         working-directory: lab/terraform/routeros
