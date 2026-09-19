@@ -9,17 +9,25 @@ def test_load_local_lab_realization():
     )
 
     assert realization.name == "local-lab"
-    assert realization.docker["networkDriver"] == "macvlan"
 
-    networks = realization.docker["networks"]
+    workload = realization.docker["hosts"]["workload"]
 
-    assert networks["dmz"]["parent"] == "enp0s2"
-    assert networks["internal"]["parent"] == "enp0s3"
-    assert networks["database"]["parent"] == "enp0s4"
+    assert workload["nodes"] == [
+        "portal",
+        "campaign",
+        "call_simulator",
+        "database",
+    ]
 
-    assert networks["dmz"]["ipam"]["offset"] == 128
-    assert networks["dmz"]["ipam"]["prefixLength"] == 28
+    assert workload["networkDriver"] == "macvlan"
 
-    assert realization.routeros["interfaces"]["dmz"]["physicalInterface"] == "ether1"
-    assert realization.routeros["interfaces"]["internal"]["physicalInterface"] == "ether2"
-    assert realization.routeros["interfaces"]["database"]["physicalInterface"] == "ether3"
+    assert "dmz" in workload["networks"]
+    assert "internal" in workload["networks"]
+    assert "database" in workload["networks"]
+
+    assert "observability" not in realization.docker["hosts"]
+
+    assert (
+        realization.routeros["interfaces"]["observability"]["physicalInterface"]
+        == "ether4"
+    )

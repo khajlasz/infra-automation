@@ -4,6 +4,11 @@ routeros: include('routeros', required=False)
 
 ---
 docker:
+  hosts: map(include('docker_host'), required=False)
+
+---
+docker_host:
+  nodes: list(str())
   networkDriver: str(required=False)
   networks: map(include('docker_network'), required=False)
 

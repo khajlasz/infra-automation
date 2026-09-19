@@ -30,19 +30,23 @@ def generate_docker_compose(
     )
 
     generator = DockerComposeGenerator()
-    compose_spec = generator.generate(model, realization)
+    compose_specs = generator.generate(model, realization)
 
-    yaml_output = generator.serialize(compose_spec)
+    for host_name, compose_spec in compose_specs.items():
+        host_output = output.with_name(f"{output.stem}.{host_name}{output.suffix}")
 
-    output.write_text(
-        yaml_output,
-        encoding="utf-8",
-    )
+        yaml_output = generator.serialize(compose_spec)
 
-    logger.info(
-        "Docker Compose specification written to %s",
-        output,
-    )
+        host_output.write_text(
+            yaml_output,
+            encoding="utf-8",
+        )
+
+        logger.info(
+            "Docker Compose specification for host '%s' written to %s",
+            host_name,
+            host_output,
+        )
 
 def generate_terraform_routeros(
     model_directory: Path,
@@ -112,7 +116,8 @@ def main() -> int:
     compose_command.add_argument(
         "--realization",
         type=Path,
-        help="Optional deployment realization file.",
+        required=True,
+        help="Path to the deployment realization file.",
     )
 
     terraform_command = generate_subcommands.add_parser(

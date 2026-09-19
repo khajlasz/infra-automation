@@ -27,14 +27,42 @@ def validate_model(model_directory: Path) -> None:
     logger.info("Starting semantic validation")
     
     # Simple rule registry - execute rules in order
-    RULES = [
+    rules = [
         _validate_ref_001,
+        _validate_ref_002,
+        _validate_ref_003,
+        _validate_ref_004,
+        _validate_ref_005,
+        _validate_ref_006,
+        _validate_ref_007,
     ]
-    
-    for rule in RULES:
+
+    for rule in rules:
         rule(model)
     
     logger.info("Semantic validation completed successfully")
+
+def validate_realization_references(model, realization) -> None:
+    """Validate semantic references between a model and its realization.
+
+    Args:
+        model: The loaded platform model
+        realization: The loaded realization
+
+    Raises:
+        ModelError: If any realization reference rule fails
+    """
+    logger.info("Starting realization semantic validation")
+
+    realization_rules = [
+        _validate_ref_008,
+        _validate_ref_009,
+]
+
+    for rule in realization_rules:
+        rule(model, realization)
+
+    logger.info("Realization semantic validation completed successfully")
 
 
 def _validate_ref_001(model) -> None:
@@ -59,3 +87,280 @@ def _validate_ref_001(model) -> None:
             logger.error("REF-001: Node '%s' references unknown site '%s'", 
                         node_name, site_ref)
             raise ModelError(f"REF-001: Node '{node_name}' references unknown site '{site_ref}'")
+
+def _validate_ref_002(model) -> None:
+    """Validate REF-002: Interface references an existing network.
+
+    Every interface SHALL reference an existing network.
+
+    Args:
+        model: The loaded platform model
+
+    Raises:
+        ModelError: If any interface references a non-existing network
+    """
+    logger.info("Running REF-002 validation")
+
+    available_networks = set(model.network.networks.keys())
+
+    for node_name, node in model.compute.nodes.items():
+        for interface_name, interface in node.get("interfaces", {}).items():
+            network_ref = interface.get("network")
+
+            if network_ref not in available_networks:
+                logger.error(
+                    "REF-002: Interface '%s' on node '%s' references unknown network '%s'",
+                    interface_name,
+                    node_name,
+                    network_ref,
+                )
+                raise ModelError(
+                    f"REF-002: Interface '{interface_name}' on node "
+                    f"'{node_name}' references unknown network '{network_ref}'"
+                )
+
+
+def _validate_ref_003(model) -> None:
+    """Validate REF-003: Deployment references an existing application.
+
+    Every deployment SHALL reference an existing application.
+
+    Args:
+        model: The loaded platform model
+
+    Raises:
+        ModelError: If any deployment references a non-existing application
+    """
+    logger.info("Running REF-003 validation")
+
+    available_applications = set(model.application.applications.keys())
+
+    for deployment_name, deployment in model.application.deployments.items():
+        for application_ref in deployment.get("applications", []):
+            application_name = application_ref.get("application")
+
+            if application_name not in available_applications:
+                logger.error(
+                    "REF-003: Deployment '%s' references unknown application '%s'",
+                    deployment_name,
+                    application_name,
+                )
+                raise ModelError(
+                    f"REF-003: Deployment '{deployment_name}' references "
+                    f"unknown application '{application_name}'"
+                )
+
+
+def _validate_ref_004(model) -> None:
+    """Validate REF-004: External interface target references an existing application.
+
+    Every external interface target SHALL reference an existing application.
+
+    Args:
+        model: The loaded platform model
+
+    Raises:
+        ModelError: If any external interface target references a non-existing application
+    """
+    logger.info("Running REF-004 validation")
+
+    available_applications = set(model.application.applications.keys())
+
+    external_interfaces = model.platform.data.get("external_interfaces", {})
+
+    for interface_name, external_interface in external_interfaces.items():
+        for target in external_interface.get("targets", []):
+            application_name = target.get("application")
+
+            if application_name not in available_applications:
+                logger.error(
+                    "REF-004: External interface '%s' references unknown application '%s'",
+                    interface_name,
+                    application_name,
+                )
+                raise ModelError(
+                    f"REF-004: External interface '{interface_name}' references "
+                    f"unknown application '{application_name}'"
+                )
+
+
+def _validate_ref_005(model) -> None:
+    """Validate REF-005: External interface target references an existing application endpoint.
+
+    Every external interface target SHALL reference an endpoint defined by its
+    referenced application.
+
+    Args:
+        model: The loaded platform model
+
+    Raises:
+        ModelError: If any external interface target references a non-existing endpoint
+    """
+    logger.info("Running REF-005 validation")
+
+    applications = model.application.applications
+    external_interfaces = model.platform.data.get("external_interfaces", {})
+
+    for interface_name, external_interface in external_interfaces.items():
+        for target in external_interface.get("targets", []):
+            application_name = target.get("application")
+            endpoint_name = target.get("endpoint")
+
+            application = applications.get(application_name)
+
+            if application is None:
+                # REF-004 owns this failure.
+                continue
+
+            available_endpoints = application.get("endpoints", {})
+
+            if endpoint_name not in available_endpoints:
+                logger.error(
+                    "REF-005: External interface '%s' references unknown endpoint '%s' "
+                    "on application '%s'",
+                    interface_name,
+                    endpoint_name,
+                    application_name,
+                )
+                raise ModelError(
+                    f"REF-005: External interface '{interface_name}' references "
+                    f"unknown endpoint '{endpoint_name}' on application "
+                    f"'{application_name}'"
+                )
+
+def _validate_ref_006(model) -> None:
+    """Validate REF-006: External interface references an existing source network.
+
+    Every external interface SHALL reference an existing source network.
+
+    Args:
+        model: The loaded platform model
+
+    Raises:
+        ModelError: If any external interface references a non-existing
+        source network
+    """
+    logger.info("Running REF-006 validation")
+
+    available_networks = set(model.network.networks.keys())
+    external_interfaces = model.platform.data.get("external_interfaces", {})
+
+    for interface_name, external_interface in external_interfaces.items():
+        network_ref = external_interface.get("sourceNetwork")
+
+        if network_ref not in available_networks:
+            logger.error(
+                "REF-006: External interface '%s' references unknown "
+                "source network '%s'",
+                interface_name,
+                network_ref,
+            )
+            raise ModelError(
+                f"REF-006: External interface '{interface_name}' references "
+                f"unknown source network '{network_ref}'"
+            )
+
+
+def _validate_ref_007(model) -> None:
+    """Validate REF-007: External interface target references an existing network.
+
+    Every external interface target SHALL reference an existing network.
+
+    Args:
+        model: The loaded platform model
+
+    Raises:
+        ModelError: If any external interface target references a
+        non-existing network
+    """
+    logger.info("Running REF-007 validation")
+
+    available_networks = set(model.network.networks.keys())
+    external_interfaces = model.platform.data.get("external_interfaces", {})
+
+    for interface_name, external_interface in external_interfaces.items():
+        for target in external_interface.get("targets", []):
+            application_name = target.get("application")
+            endpoint_name = target.get("endpoint")
+            network_ref = target.get("network")
+
+            if network_ref not in available_networks:
+                logger.error(
+                    "REF-007: External interface '%s' target '%s.%s' "
+                    "references unknown network '%s'",
+                    interface_name,
+                    application_name,
+                    endpoint_name,
+                    network_ref,
+                )
+                raise ModelError(
+                    f"REF-007: External interface '{interface_name}' target "
+                    f"'{application_name}.{endpoint_name}' references unknown "
+                    f"network '{network_ref}'"
+                )
+
+def _validate_ref_008(model, realization) -> None:
+    """Validate REF-008: Docker host references existing compute nodes.
+
+    Every node assigned to a Docker host SHALL reference an existing
+    compute node.
+
+    Args:
+        model: The loaded platform model
+        realization: The loaded realization
+
+    Raises:
+        ModelError: If a Docker host references an unknown compute node
+    """
+    logger.info("Running REF-008 validation")
+
+    available_nodes = set(model.compute.nodes.keys())
+    docker_hosts = realization.docker.get("hosts", {})
+
+    for host_name, host in docker_hosts.items():
+        for node_name in host.get("nodes", []):
+            if node_name not in available_nodes:
+                logger.error(
+                    "REF-008: Docker host '%s' references unknown "
+                    "compute node '%s'",
+                    host_name,
+                    node_name,
+                )
+                raise ModelError(
+                    f"REF-008: Docker host '{host_name}' references "
+                    f"unknown compute node '{node_name}'"
+                )
+
+def _validate_ref_009(model, realization) -> None:
+    """Validate REF-009: Compute node is assigned to at most one Docker host.
+
+    Args:
+        model: The loaded platform model
+        realization: The loaded realization
+
+    Raises:
+        ModelError: If a compute node is assigned to multiple Docker hosts
+    """
+    logger.info("Running REF-009 validation")
+
+    docker_hosts = realization.docker.get("hosts", {})
+    placements = {}
+
+    for host_name, host in docker_hosts.items():
+        for node_name in host.get("nodes", []):
+            if node_name in placements:
+                first_host = placements[node_name]
+
+                logger.error(
+                    "REF-009: Compute node '%s' is assigned to multiple "
+                    "Docker hosts: '%s' and '%s'",
+                    node_name,
+                    first_host,
+                    host_name,
+                )
+                raise ModelError(
+                    f"REF-009: Compute node '{node_name}' is assigned to "
+                    f"multiple Docker hosts: '{first_host}' and '{host_name}'"
+                )
+
+            placements[node_name] = host_name

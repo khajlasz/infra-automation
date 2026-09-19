@@ -13,6 +13,11 @@ resource "routeros_interface_ethernet" "database" {
   factory_name = "ether3"
 }
 
+resource "routeros_interface_ethernet" "observability" {
+  name         = "observability"
+  factory_name = "ether4"
+}
+
 resource "routeros_ip_address" "dmz_gateway" {
   address   = "10.10.10.1/24"
   interface = "dmz"
@@ -31,6 +36,12 @@ resource "routeros_ip_address" "database_gateway" {
   comment   = "Database gateway"
 }
 
+resource "routeros_ip_address" "observability_gateway" {
+  address   = "10.10.40.1/24"
+  interface = "observability"
+  comment   = "Observability gateway"
+}
+
 resource "routeros_ip_firewall_addr_list" "dmz" {
   list    = "lab-networks"
   address = "10.10.10.0/24"
@@ -47,6 +58,12 @@ resource "routeros_ip_firewall_addr_list" "database" {
   list    = "lab-networks"
   address = "10.10.30.0/24"
   comment = "Database"
+}
+
+resource "routeros_ip_firewall_addr_list" "observability" {
+  list    = "lab-networks"
+  address = "10.10.40.0/24"
+  comment = "Observability"
 }
 
 resource "routeros_ip_firewall_filter" "allow_established_related" {
@@ -77,6 +94,17 @@ resource "routeros_ip_firewall_filter" "allow_internal_to_database" {
   src_address = "10.10.20.0/24"
   dst_address = "10.10.30.0/24"
   comment     = "Allow Internal traffic to Database network"
+}
+
+resource "routeros_ip_firewall_filter" "allow_metrics_observability_to_internal" {
+  chain        = "forward"
+  action       = "accept"
+  src_address  = "10.10.40.0/24"
+  dst_address  = "10.10.20.0/24"
+  protocol     = "tcp"
+  dst_port     = "9090"
+  place_before = routeros_ip_firewall_filter.deny_other_interzone.id
+  comment      = "Allow metrics access from Observability to Internal"
 }
 
 resource "routeros_ip_firewall_filter" "deny_other_interzone" {

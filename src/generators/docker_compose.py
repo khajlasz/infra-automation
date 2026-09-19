@@ -85,26 +85,39 @@ class DockerComposeGenerator:
 
         return sorted(ports)
 
+    def _get_required_networks(
+        self,
+        model: PlatformModel,
+        node_names: list[str],
+    ) -> set[str]:
+        """Return logical networks required by the selected compute nodes."""
+        required_networks = set()
+
+        for node_name in node_names:
+            node = model.compute.nodes[node_name]
+
+            for interface in node["interfaces"].values():
+                required_networks.add(interface["network"])
+
+        return required_networks
+
     def _generate_networks(
         self,
         model: PlatformModel,
         compose_spec: Dict[str, Any],
-        realization: Realization | None = None,
+        host: Dict[str, Any],
+        network_names: set[str],
     ) -> None:
         """Generate top-level Docker Compose networks."""
 
         compose_spec["networks"] = {}
         networks = compose_spec["networks"]
 
-        if realization is None:
-            for network_name in model.network.networks:
-                networks[network_name] = {}
-            return
+        driver = host["networkDriver"]
+        realized_networks = host["networks"]
 
-        driver = realization.docker["networkDriver"]
-        realized_networks = realization.docker["networks"]
-
-        for network_name, network in model.network.networks.items():
+        for network_name in sorted(network_names):
+            network = model.network.networks[network_name]
             realization_network = realized_networks[network_name]
 
             cidr = network["subnet"]["cidr"]
@@ -129,33 +142,29 @@ class DockerComposeGenerator:
                 },
             }
 
-    def _generate_services(self, model: PlatformModel, compose_spec: Dict[str, Any]) -> None:
-        """
-        Generate service entries for compute nodes.
-        
-        Args:
-            model: The loaded platform model
-            compose_spec: The Docker Compose specification dictionary to update
-        """
+    def _generate_services(
+        self,
+        model: PlatformModel,
+        compose_spec: Dict[str, Any],
+        node_names: list[str],
+    ) -> None:
+        """Generate service entries for selected compute nodes."""
+
         services = compose_spec["services"]
-        
-        for node_name, node in model.compute.nodes.items():
-            # Add the node as a service
-            services[node_name] = {}
-            service = services[node_name]
-            
-            # Generate the image from the deployment
+
+        for node_name in node_names:
+            node = model.compute.nodes[node_name]
+
+            service = {}
+            services[node_name] = service
+
             deployment_name = node["deployment"]
             deployment = model.application.deployments[deployment_name]
+
             service["image"] = self._build_image_name(deployment)
-            
-            # Set the hostname to the node name
             service["hostname"] = node_name
-            
-            # Add networks from interfaces
             service["networks"] = self._build_networks(node)
-            
-            # Add ports from application endpoints
+
             ports = self._build_ports(deployment, model)
             if ports:
                 service["ports"] = ports
@@ -164,28 +173,45 @@ class DockerComposeGenerator:
         self,
         model: PlatformModel,
         realization: Realization | None = None,
-    ) -> Dict[str, Any]:
-        """
-        Generate a Docker Compose specification from the platform model.
-        
-        Args:
-            model: The loaded platform model
-            realization: The environment-specific deployment realization
-            
-        Returns:
-            A Python dictionary representing a partial Docker Compose spec 
-            with services section containing entries for each compute node
-        """
-        # Initialize the Docker Compose structure
-        compose_spec = {"services": {}}
-        
-        # Generate service entries from compute nodes
-        self._generate_services(model, compose_spec)
-        
-        # Generate top-level networks section
-        self._generate_networks(model, compose_spec, realization)
-        
-        return compose_spec
+    ) -> Dict[str, Dict[str, Any]]:
+        """Generate one Docker Compose specification per Docker host."""
+
+        if realization is None:
+            raise ValueError(
+                "Docker Compose generation requires a realization"
+            )
+
+        compose_specs = {}
+
+        for host_name, host in realization.docker.get("hosts", {}).items():
+            node_names = host.get("nodes", [])
+
+            if not node_names:
+                continue
+
+            compose_spec = {"services": {}}
+
+            required_networks = self._get_required_networks(
+                model,
+                node_names,
+            )
+
+            self._generate_services(
+                model,
+                compose_spec,
+                node_names,
+            )
+
+            self._generate_networks(
+                model,
+                compose_spec,
+                host,
+                required_networks,
+            )
+
+            compose_specs[host_name] = compose_spec
+
+        return compose_specs
 
     def serialize(self, compose_spec: Dict[str, Any]) -> str:
         """

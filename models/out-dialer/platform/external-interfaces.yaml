@@ -1,0 +1,16 @@
+external_interfaces:
+  metrics:
+    sourceNetwork: observability
+
+    targets:
+      - application: Portal
+        endpoint: metrics
+        network: internal
+
+      - application: CampaignManager
+        endpoint: metrics
+        network: internal
+
+      - application: CallSimulator
+        endpoint: metrics
+        network: internal
