@@ -3,383 +3,345 @@
 This document defines the semantic validation rules implemented by the
 Infrastructure Automation Framework.
 
-Unlike schema validation, these rules validate the assembled `PlatformModel`
-rather than individual YAML files.
+Unlike schema validation, these rules validate references across the
+assembled `PlatformModel` and between the model and a deployment
+realization.
 
-The registry is the authoritative specification for framework validation.
+The registry is the authoritative specification for framework semantic
+validation.
 
-Each rule has a stable identifier that is referenced by:
+Each rule has a stable identifier referenced by:
 
-- Python implementation
-- Unit tests
-- Log messages
-- Documentation
+-   Python implementation
+-   unit tests
+-   log messages
+-   documentation
 
 ## Scope
 
-The Validation Registry specifies only semantic validation rules that cannot be
-enforced by earlier processing stages (YAML parsing or schema validation).
+The Validation Registry specifies semantic rules that cannot be enforced
+by individual YAML schemas alone.
 
----
+Model rules REF-001 through REF-007 operate on the assembled Platform
+Model.
+
+Realization rules REF-008 and REF-009 validate references between a
+loaded Platform Model and a deployment realization.
+
+------------------------------------------------------------------------
 
 # Path Notation
 
-Validation rules describe objects using logical paths through the
-`PlatformModel`.
+Validation rules describe objects using logical paths.
 
-The notation is independent of the Python implementation.
-
-Notation:
-
-- `.` separates object attributes.
-- `[*]` means "every element in the collection".
-- Paths describe the logical data model.
+-   `.` separates object attributes.
+-   `[*]` means every element in a collection.
+-   paths describe logical model structure rather than Python
+    implementation details.
 
 Examples:
 
-| Path | Meaning |
-|------|---------|
-| `model.compute.nodes[*].site` | The `site` attribute of every compute node. |
-| `model.compute.nodes[*].interfaces[*].network` | The `network` attribute of every interface on every compute node. |
-| `model.application.deployments[*].applications[*].application` | Every application referenced by every deployment. |
+``` text
+model.compute.nodes[*].site
+model.compute.nodes[*].interfaces[*].network
+model.application.deployments[*].applications[*].application
+realization.docker.hosts[*].nodes[*]
+```
 
----
+------------------------------------------------------------------------
 
 # Validation Coverage
 
-| ID | Category | Title | Severity | Status |
-|----|----------|-------|----------|--------|
-| REF-001 | Reference Integrity | Node references an existing site | ERROR | Implemented |
-| REF-002 | Reference Integrity | Interface references an existing network | ERROR | Planned |
-| REF-003 | Reference Integrity | Deployment references an existing application | ERROR | Planned |
-| REF-004 | Reference Integrity | External interface target references an existing application | ERROR | Planned |
-| REF-005 | Reference Integrity | External interface target references an existing application endpoint | ERROR | Planned |
+``` text
+REF-001  Node references an existing site                         Implemented
+REF-002  Interface references an existing network                 Implemented
+REF-003  Deployment references an existing application            Implemented
+REF-004  External target references an existing application       Implemented
+REF-005  External target references an existing endpoint          Implemented
+REF-006  External interface references an existing source network Implemented
+REF-007  External target references an existing network           Implemented
+REF-008  Docker host references existing compute nodes            Implemented
+REF-009  Compute node is assigned to at most one Docker host      Implemented
+```
 
----
+------------------------------------------------------------------------
 
 # Reference Integrity Rules
 
----
+## REF-001 --- Node references an existing site
 
-## REF-001
-
-### Title
-
-Node references an existing site.
-
-### Purpose
+**Purpose**
 
 Ensure every compute node belongs to a valid deployment site.
 
-### Source
+**Source**
 
 `model.compute.nodes[*].site`
 
-### Target
+**Target**
 
 `model.network.sites`
 
-### Validation
+**Validation**
 
 Every node SHALL reference an existing site.
 
-### Error Message
+**Error**
 
-```
+``` text
 REF-001: Node '{node}' references unknown site '{site}'.
 ```
 
-### Severity
+**Severity:** ERROR\
+**Status:** Implemented
 
-ERROR
+------------------------------------------------------------------------
 
-### Status
+## REF-002 --- Interface references an existing network
 
-Implemented
+**Purpose**
 
----
+Ensure every compute-node interface is attached to an existing logical
+network.
 
-## REF-002
-
-### Title
-
-Interface references an existing network.
-
-### Purpose
-
-Ensure every compute node interface is attached to an existing network.
-
-### Source
+**Source**
 
 `model.compute.nodes[*].interfaces[*].network`
 
-### Target
+**Target**
 
 `model.network.networks`
 
-### Validation
+**Validation**
 
 Every interface SHALL reference an existing network.
 
-### Error Message
+**Error**
 
-```
+``` text
 REF-002: Interface '{interface}' on node '{node}' references unknown network '{network}'.
 ```
 
-### Severity
+**Severity:** ERROR\
+**Status:** Implemented
 
-ERROR
+------------------------------------------------------------------------
 
-### Status
+## REF-003 --- Deployment references an existing application
 
-Planned
-
----
-
-## REF-003
-
-### Title
-
-Deployment references an existing application.
-
-### Purpose
+**Purpose**
 
 Ensure every deployment references an application defined in the model.
 
-### Source
+**Source**
 
 `model.application.deployments[*].applications[*].application`
 
-### Target
+**Target**
 
 `model.application.applications`
 
-### Validation
+**Validation**
 
 Every deployment SHALL reference an existing application.
 
-### Error Message
+**Error**
 
-```
+``` text
 REF-003: Deployment '{deployment}' references unknown application '{application}'.
 ```
 
-### Severity
+**Severity:** ERROR\
+**Status:** Implemented
 
-ERROR
+------------------------------------------------------------------------
 
-### Status
+## REF-004 --- External interface target references an existing application
 
-Planned
+**Purpose**
 
-## REF-004
+Ensure every external-interface target references an application defined
+in the model.
 
-### Title
-
-External interface target references an existing application.
-
-### Purpose
-
-Ensure every external interface target references an application defined in the model.
-
-### Source
+**Source**
 
 `model.platform.external_interfaces[*].targets[*].application`
 
-### Target
+**Target**
 
 `model.application.applications`
 
-### Validation
+**Validation**
 
-Every external interface target SHALL reference an existing application.
+Every external-interface target SHALL reference an existing application.
 
-### Error Message
+**Error**
 
-```text
+``` text
 REF-004: External interface '{interface}' references unknown application '{application}'.
 ```
-### Severity
 
-ERROR
+**Severity:** ERROR\
+**Status:** Implemented
 
-### Status
+------------------------------------------------------------------------
 
-Planned
+## REF-005 --- External interface target references an existing application endpoint
 
-## REF-005
-### Title
+**Purpose**
 
-External interface target references an existing application endpoint.
+Ensure every external-interface target references an endpoint defined by
+its referenced application.
 
-### Purpose
-
-Ensure every external interface target references an endpoint defined by the referenced application.
-
-### Source
+**Source**
 
 `model.platform.external_interfaces[*].targets[*].endpoint`
 
-Target
+**Target**
 
 `model.application.applications[*].endpoints`
 
-### Validation
+**Validation**
 
-Every external interface target SHALL reference an endpoint defined by its referenced application.
+Every external-interface target SHALL reference an endpoint defined by
+the referenced application.
 
-Error Message
-```text
+If the application itself does not exist, REF-004 owns that failure and
+REF-005 does not emit a duplicate error.
+
+**Error**
+
+``` text
 REF-005: External interface '{interface}' references unknown endpoint '{endpoint}' on application '{application}'.
 ```
-### Severity
 
-ERROR
+**Severity:** ERROR\
+**Status:** Implemented
 
-### Status
+------------------------------------------------------------------------
 
-Planned
+## REF-006 --- External interface references an existing source network
 
-## REF-006
+**Purpose**
 
-### Title
+Ensure every external interface's source network is defined in the
+Platform Model.
 
-External interface references an existing source network.
-
-### Purpose
-
-Ensure every external interface source network is defined in the platform model.
-
-### Source
+**Source**
 
 `model.platform.external_interfaces[*].sourceNetwork`
 
-### Target
+**Target**
 
 `model.network.networks`
 
-### Validation
+**Validation**
 
 Every external interface SHALL reference an existing source network.
 
-### Error Message
+**Error**
 
-```text
+``` text
 REF-006: External interface '{interface}' references unknown source network '{network}'.
 ```
 
-### Severity
+**Severity:** ERROR\
+**Status:** Implemented
 
-ERROR
+------------------------------------------------------------------------
 
-### Status
+## REF-007 --- External interface target references an existing network
 
-Planned
+**Purpose**
 
-## REF-007
+Ensure every external-interface target is associated with a network
+defined in the Platform Model.
 
-### Title
-
-External interface target references an existing network.
-
-### Purpose
-
-Ensure every external interface target is associated with a network defined in the platform model.
-
-### Source
+**Source**
 
 `model.platform.external_interfaces[*].targets[*].network`
 
-### Target
+**Target**
 
 `model.network.networks`
 
-### Validation
+**Validation**
 
-Every external interface target SHALL reference an existing network.
+Every external-interface target SHALL reference an existing network.
 
-### Error Message
+**Error**
 
-```text
+``` text
 REF-007: External interface '{interface}' target '{application}.{endpoint}' references unknown network '{network}'.
-Severity
 ```
-### Severity
 
-ERROR
+**Severity:** ERROR\
+**Status:** Implemented
 
-### Status
+------------------------------------------------------------------------
 
-Planned
+# Realization Reference Rules
 
-## REF-008
+## REF-008 --- Docker host references existing compute nodes
 
-### Title
+**Purpose**
 
-Docker host references existing compute nodes.
+Ensure every compute node assigned to a Docker realization host exists
+in the Platform Model.
 
-### Purpose
-
-Ensure every compute node assigned to a Docker realization host exists in the Platform Model.
-
-### Source
+**Source**
 
 `realization.docker.hosts[*].nodes[*]`
 
-### Target
+**Target**
 
 `model.compute.nodes`
 
-### Validation
+**Validation**
 
-Every node assigned to a Docker host SHALL reference an existing compute node.
+Every node assigned to a Docker host SHALL reference an existing compute
+node.
 
-### Error Message
+**Error**
 
-```text
+``` text
 REF-008: Docker host '{host}' references unknown compute node '{node}'.
 ```
 
-### Severity
+**Severity:** ERROR\
+**Status:** Implemented
 
-ERROR
+------------------------------------------------------------------------
 
-### Status
+## REF-009 --- Compute node is assigned to at most one Docker host
 
-Planned
+**Purpose**
 
-## REF-009
+Prevent ambiguous Docker placement by ensuring that a compute node is
+not assigned to multiple Docker realization hosts.
 
-### Title
-
-Compute node is assigned to at most one Docker host.
-
-### Purpose
-
-Prevent ambiguous Docker placement by ensuring that a compute node is not assigned to multiple Docker realization hosts.
-
-### Source
+**Source**
 
 `realization.docker.hosts[*].nodes[*]`
 
-### Target
+**Target**
 
-Docker host placement set
+Docker host placement set.
 
-### Validation
+**Validation**
 
-Each compute node SHALL appear in at most one Docker host placement list.
+Each compute node SHALL appear in at most one Docker host placement
+list.
 
-### Error Message
+This rule intentionally does not require every model node to be
+assigned. A future completeness rule may be introduced separately if
+deployment semantics require it.
 
-```text
+**Error**
+
+``` text
 REF-009: Compute node '{node}' is assigned to multiple Docker hosts: '{first_host}' and '{second_host}'.
 ```
-### Severity
 
-ERROR
-
-### Status
-
-Planned
+**Severity:** ERROR\
+**Status:** Implemented
