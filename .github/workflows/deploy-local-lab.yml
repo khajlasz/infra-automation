@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "src/**"
+      - "models/**"
+      - "realizations/**"
+      - "schema/**"
+      - "lab/terraform/**"
+      - "pyproject.toml"
+      - ".github/workflows/deploy-local-lab.yml"
 
   workflow_dispatch:
 
