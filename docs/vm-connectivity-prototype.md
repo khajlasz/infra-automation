@@ -106,41 +106,81 @@ to QEMU Host Networks.
 
 ## Final Topology
 
+The lab now separates the **bootstrap/management plane** from the
+**platform/data plane**.
+
 ```text
-                             Management LAN
-                             192.168.1.0/24
-                                      |
-                 +--------------------+--------------------+
-                 |                                         |
-          Ubuntu QEMU                                RouterOS CHR
-        bridged management                         bridged management
-                 |                                         |
-                 |             UTM Host Networks           |
-                 |                                         |
-        enp0s2 --+--------------- DMZ ----------------+-- dmz
-        enp0s3 --+------------- Internal -------------+-- internal
-        enp0s4 --+------------- Database -------------+-- database
-                 |                                         |
-          Docker macvlan                         routing + firewall
-                 |
-      +----------+------------+
-      |                       |
-  DMZ container        Internal container        Database container
-  10.10.10.130         10.10.20.130              10.10.30.130
+                         Bootstrap / Management
+                            172.31.255.0/24
+                                   |
+                  +----------------+----------------+
+                  |                                 |
+               macOS                           RouterOS CHR
+            172.31.255.1                       172.31.255.10
+                  |                                 |
+                  |                        routing + firewall
+                  |                                 |
+                  |             Platform / Data Plane
+                  |                                 |
+                  |       +-------------+-----------+-------------+
+                  |       |             |                         |
+                  |      DMZ         Internal                 Database
+                  | 10.10.10.0/24 10.10.20.0/24          10.10.30.0/24
+                  |                     |
+                  |                     |
+                  |              Observability
+                  |             10.10.40.0/24
+                  |
+          automation control
+              plane
+```
+The platform/data-plane networks carry modeled application and
+observability traffic:
+```text
+DMZ             10.10.10.0/24
+Internal        10.10.20.0/24
+Database        10.10.30.0/24
+Observability   10.10.40.0/24
+```
+The bootstrap/management network is deliberately separate:
+```text
+Management      172.31.255.0/24
+macOS host      172.31.255.1
+RouterOS        172.31.255.10
 ```
 
-The management addresses are assigned by the physical LAN's DHCP service and
-may change. They are intentionally separate from the application networks.
+In the original prototype, VM management interfaces were bridged to the
+physical LAN and received addresses through that LAN's DHCP service. This
+worked but made automation dependent on the network to which the MacBook was
+currently connected.
+
+The management path was therefore migrated to a dedicated UTM host-only
+network. RouterOS now has the stable management address
+`172.31.255.10/24`, allowing Terraform and the self-hosted GitHub Actions
+runner to reach it independently of the current Wi-Fi or physical LAN.
+
+The management network is a lab/bootstrap prerequisite. It is not part of the
+provider-independent Platform Model.
 
 ## UTM Host Networks
 
-Three global UTM Host Networks provide separate Layer-2 domains:
+The lab uses two different UTM networking mechanisms because the management
+and platform networks have different requirements.
+
+### Platform networks
+
+Named global UTM Host Networks provide shared Layer-2 domains for the
+platform/data-plane networks:
 
 | UTM Host Network | IPv4 subnet     | Purpose                                     |
 | ---------------- | --------------- | ------------------------------------------- |
 | `dmz`            | `10.10.10.0/24` | Externally facing/application edge services |
 | `internal`       | `10.10.20.0/24` | Internal application services               |
 | `database`       | `10.10.30.0/24` | Data services                               |
+| `observability`  | `10.10.40.0/24` | External observability services             |
+
+These networks must be shared between the relevant VMs and therefore use
+named UTM Host Networks.
 
 The initial prototype network was created as `lab-net` and later renamed to
 `dmz`. Its UTM UUID at the time of testing was:
@@ -149,13 +189,52 @@ The initial prototype network was created as `lab-net` and later renamed to
 B6A04FFC-602A-4DDA-951F-C01D90670A42
 ```
 
-A global named Host Network is essential. UTM's `Default (private)` Host Only
-network isolates a VM from other VMs and therefore is not suitable here.
+Addresses on the platform networks are assigned explicitly in Ubuntu,
+RouterOS, Docker IPAM, or the corresponding deployment realization.
 
-UTM Host Networks do not supply DHCP. Addresses on these networks are assigned
-explicitly in Ubuntu, RouterOS, and Docker IPAM.
+### Management network
 
-## Interface and Address Inventory
+Management uses a different UTM mechanism:
+```text
+Network Mode:    Host Only
+Host Network:    Default (private)
+Guest Network:   172.31.255.0/24
+Host isolation:  disabled
+```
+This creates stable host-to-guest connectivity without depending on the
+physical LAN.
+
+The verified RouterOS management path is:
+```text
+macOS / UTM host    172.31.255.1
+        |
+        | UTM Host Only
+        |
+RouterOS             172.31.255.10
+```
+UTM may also assign a dynamic guest address on this network. RouterOS uses
+the explicitly configured 172.31.255.10/24 address as its stable automation
+endpoint.
+
+The distinction between the two UTM mechanisms is intentional:
+```text
+Default (private) Host Only
+    -> bootstrap and host-to-VM management
+
+Named UTM Host Networks
+    -> shared Layer-2 platform/data-plane segments
+```
+The management network is outside the Platform Model and deployment
+realization because it provides the bootstrap path through which the
+automation reaches the infrastructure it manages.
+
+## Original Prototype Interface and Address Inventory
+
+The following inventory records the original physical-LAN management
+configuration used when the connectivity prototype was first verified.
+
+The current RouterOS automation endpoint is instead the stable UTM host-only
+address `172.31.255.10/24` described in the management-network section above.
 
 ### Ubuntu
 
@@ -245,6 +324,163 @@ The effective RouterOS configuration was created manually as follows:
 
 RouterOS automatically installed connected routes for all three subnets.
 No static routes were required.
+
+## Management and Automation Control Plane
+
+The macOS host acts as both the development workstation and the trusted
+self-hosted GitHub Actions runner for local-lab delivery.
+
+Terraform reaches RouterOS through the dedicated management network:
+
+```text
+GitHub
+   |
+   | trusted main workflow
+   v
+Self-hosted GitHub Actions runner
+macOS
+172.31.255.1
+   |
+   | HTTPS / RouterOS REST API
+   | UTM Host Only
+   v
+RouterOS CHR
+172.31.255.10:443
+   |
+   v
+Platform networks
+```
+
+This management path is deliberately independent of the physical network to
+which the MacBook is connected.
+
+### RouterOS REST API
+
+Terraform uses the RouterOS REST API over HTTPS.
+
+The RouterOS `www-ssl` service must therefore be enabled and available on
+TCP port 443.
+
+The lab currently uses a locally issued RouterOS TLS certificate. The lab CA
+is not installed as a trusted CA for the Terraform execution environment, so
+certificate verification is currently disabled for this isolated lab.
+
+This is a lab-specific compromise rather than a general production
+recommendation. A future improvement can install and trust the lab CA and
+remove the insecure provider setting.
+
+### Terraform RouterOS environment
+
+The RouterOS Terraform provider is configured through environment variables:
+```text
+ROS_HOSTURL=https://172.31.255.10
+ROS_USERNAME=<RouterOS automation username>
+ROS_PASSWORD=<RouterOS automation password>
+ROS_INSECURE=true
+```
+
+`ROS_USERNAME` and `ROS_PASSWORD` are credentials and must not be committed
+to the repository.
+
+For GitHub Actions they are stored as repository Actions secrets:
+```text
+ROS_HOSTURL
+ROS_USERNAME
+ROS_PASSWORD
+```
+`ROS_INSECURE` is not a credential and may be set directly by the trusted
+local-lab workflow:
+```yaml
+env:
+  ROS_HOSTURL: ${{ secrets.ROS_HOSTURL }}
+  ROS_USERNAME: ${{ secrets.ROS_USERNAME }}
+  ROS_PASSWORD: ${{ secrets.ROS_PASSWORD }}
+  ROS_INSECURE: "true"
+```
+Terraform state is stored outside the repository. The local-lab workflow
+receives its location through:
+```text
+LOCAL_LAB_STATE_PATH
+```
+and initializes the backend with:
+```sh
+terraform init -reconfigure \
+  -backend-config="path=${LOCAL_LAB_STATE_PATH}"
+```
+The exact state path and credentials are runtime configuration and are not
+part of the Platform Model.
+
+### macOS Local Network access
+
+During self-hosted runner setup, Terraform executed as the normal macOS user
+was initially unable to reach the RouterOS management endpoint even though
+the route and direct host connectivity were valid.
+
+The observed behavior was:
+```text
+terraform plan             -> no route to host
+sudo -E terraform plan     -> succeeds
+```
+Running Terraform as root was not adopted as the solution because the
+self-hosted CI runner should not require root privileges.
+
+The dedicated lab management subnet was instead allowed through the macOS
+Local Network privacy configuration:
+```sh
+sudo defaults write com.apple.network.local-network \
+  AllowedEthernetLocalNetworkAddresses \
+  -array "172.31.255.0/24"
+
+sudo defaults write com.apple.network.local-network \
+  AllowedWiFiLocalNetworkAddresses \
+  -array "172.31.255.0/24"
+```
+The Mac was restarted after applying the configuration.
+
+After restart:
+```
+terraform plan
+```
+successfully reached RouterOS as the normal user.
+
+This configuration is therefore part of the workstation bootstrap required
+for the trusted self-hosted GitHub Actions runner.
+
+### Delivery trust boundary
+
+Pull-request CI and local-lab delivery intentionally operate across different
+trust boundaries:
+```
+Feature branch
+      |
+      v
+Pull Request
+      |
+      v
+GitHub-hosted CI
+tests / validation / generation
+no local-lab credentials
+      |
+      v
+Human review + merge
+      |
+      v
+main
+      |
+      v
+Self-hosted macOS runner
+      |
+      +-- local Terraform state
+      +-- RouterOS credentials
+      +-- local-lab network access
+      |
+      v
+RouterOS
+```
+Feature-branch workflow definitions are therefore not used to execute
+privileged local-lab operations. Changes to the delivery workflow pass through
+Pull Request CI and review before the merged main workflow runs on the
+trusted self-hosted runner.
 
 ## Docker Network Realization
 
@@ -461,6 +697,16 @@ declarative source code.
 8. Firewall counters and logs provide observable evidence of allowed and denied
    flows.
 9. The manual topology is stable across Ubuntu reboot.
+10. A physical-LAN DHCP address is unsuitable as the long-term automation
+    endpoint for a portable development workstation.
+11. A dedicated UTM host-only management subnet provides stable bootstrap
+    connectivity independently of the current physical LAN.
+12. The management/bootstrap plane should remain separate from the modeled
+    platform/data plane.
+13. The self-hosted GitHub Actions runner can use the same non-root Terraform
+    execution path as interactive development.
+14. macOS Local Network privacy configuration is a workstation prerequisite
+    for non-root automation access to the dedicated lab management subnet.
 
 ## Implications for the Platform Model
 
@@ -557,23 +803,59 @@ These should be resolved from the needs of the Out-Dialer reference deployment
 and the existing object model, not by generalizing the lab configuration
 prematurely.
 
-## Recommended Next Work
+## Evolution Since the Prototype
 
-1. Preserve the RouterOS export and this document as the manual baseline.
-2. Express the three macvlan networks and test endpoints declaratively in
-   Docker Compose.
-3. Map the Out-Dialer services onto DMZ, Internal, and Database networks.
-4. Define application-level flows, protocols, and ports required by Out-Dialer.
-5. Compare those flows with the current `Connection` and `Policy` concepts.
-6. Write an ADR for logical policy versus provider realization.
-7. Prototype the smallest Terraform configuration that reproduces one
-   RouterOS interface address and one firewall rule.
-8. Import or reconcile the existing manual RouterOS configuration before
-   letting Terraform manage it.
-9. Extend generation incrementally from one network/rule to all three networks
-   and the complete policy.
-10. Add an end-to-end verification command through the project's CLI once the
-    generated artifacts are stable.
+The original manual connectivity prototype became the empirical basis for the
+current model-driven implementation.
+
+The project subsequently progressed through:
+
+```text
+Manual UTM / RouterOS connectivity prototype
+                    |
+                    v
+Logical Platform Model
+                    |
+                    v
+Deployment realization
+                    |
+          +---------+---------+
+          |                   |
+          v                   v
+Host-aware Docker       RouterOS Terraform
+Compose generation         generation
+          |                   |
+          +---------+---------+
+                    |
+                    v
+          Runtime Out-Dialer lab
+                    |
+                    v
+External observability interface
+                    |
+                    v
+RouterOS-generated metrics access
+                    |
+                    v
+Prometheus -> RouterOS -> Out-Dialer
+                    |
+                    v
+Trusted self-hosted local-lab workflow
+```
+The prototype's provider-specific observations were intentionally kept outside
+the logical Platform Model.
+
+The current implementation now derives Docker and RouterOS artifacts from the
+validated model and deployment realization rather than reproducing the manual
+prototype configuration directly.
+
+The stable management network remains a bootstrap prerequisite rather than
+modeled platform intent.
+
+Current work has moved into the Observability/SRE phase. The next
+infrastructure objective is persistent storage for Prometheus, Grafana and
+Loki, followed by richer application signals, SLIs, SLOs and related
+operational practices.
 
 ## Definition of Success Achieved
 

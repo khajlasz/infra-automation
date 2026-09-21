@@ -77,4 +77,5 @@ jobs:
           ROS_HOSTURL: ${{ secrets.ROS_HOSTURL }}
           ROS_USERNAME: ${{ secrets.ROS_USERNAME }}
           ROS_PASSWORD: ${{ secrets.ROS_PASSWORD }}
+          ROS_INSECURE: "true"
         run: terraform plan
