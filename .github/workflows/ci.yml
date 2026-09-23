@@ -4,16 +4,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "models/**"
-      - "realizations/**"
-      - "schema/**"
-      - "lab/terraform/**"
-      - "pyproject.toml"
-      - ".github/workflows/**"
-      - "observability/**"
 
   workflow_dispatch:
 
