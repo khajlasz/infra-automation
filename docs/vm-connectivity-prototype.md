@@ -144,10 +144,20 @@ Observability   10.10.40.0/24
 ```
 The bootstrap/management network is deliberately separate:
 ```text
-Management      172.31.255.0/24
-macOS host      172.31.255.1
-RouterOS        172.31.255.10
+Management          172.31.255.0/24
+macOS host          172.31.255.1
+RouterOS            172.31.255.10
+Workload VM         172.31.255.20
+Observability VM    172.31.255.30
 ```
+
+All four management addresses are now verified. The two Ubuntu addresses are
+configured statically through Netplan and survive VM reboot.
+
+The management network provides host-to-VM and automation connectivity only.
+The Ubuntu VMs currently have no default route through this network and
+therefore no Internet egress. This is intentional for the current lab
+configuration; Internet access can be introduced separately if required.
 
 In the original prototype, VM management interfaces were bridged to the
 physical LAN and received addresses through that LAN's DHCP service. This
@@ -228,6 +238,59 @@ The management network is outside the Platform Model and deployment
 realization because it provides the bootstrap path through which the
 automation reaches the infrastructure it manages.
 
+### Ubuntu management configuration
+
+The Ubuntu workload and observability VMs use static addresses on the
+management network:
+
+```text
+Workload VM         172.31.255.20/24
+Observability VM    172.31.255.30/24
+```
+The management interfaces are configured through Netplan. For example, the
+workload VM uses:
+```yaml
+enp0s1:
+  addresses:
+    - 172.31.255.20/24
+  dhcp4: false
+  dhcp6: false
+  optional: true
+  match:
+    macaddress: 16:7d:9e:fb:56:92
+  set-name: enp0s1
+```
+The observability VM follows the same pattern with `172.31.255.30/24`.
+
+The platform/data-plane interfaces are also marked optional: true in
+Netplan. These interfaces connect isolated lab networks and do not provide
+DNS or a default route, so Ubuntu boot must not depend on them satisfying
+`network-online.target`.
+
+Without this setting, `systemd-networkd-wait-online` waited for network
+connectivity and delayed boot until its timeout even though the statically
+configured interfaces themselves were operational.
+
+With the lab interfaces marked optional, Netplan does not make
+`network-online.target` depend on `systemd-networkd-wait-online`. This was
+verified after reboot on both Ubuntu VMs.
+
+The resulting workload VM routing table contains only directly connected
+routes for:
+```text
+10.10.10.0/24      DMZ
+10.10.20.0/24      Internal
+10.10.30.0/24      Database
+172.31.255.0/24    Management
+```
+The observability VM similarly has directly connected routes for:
+```text
+10.10.40.0/24      Observability
+172.31.255.0/24    Management
+```
+Neither VM currently has a default route. The former physical-LAN management
+interface also provided Internet egress through DHCP; separating management
+from the physical LAN intentionally removed that implicit dependency.
 ## Original Prototype Interface and Address Inventory
 
 The following inventory records the original physical-LAN management
@@ -707,6 +770,14 @@ declarative source code.
     execution path as interactive development.
 14. macOS Local Network privacy configuration is a workstation prerequisite
     for non-root automation access to the dedicated lab management subnet.
+15. Static management addresses `172.31.255.20` and `172.31.255.30` provide
+    predictable Mac-to-VM access to the workload and observability hosts.
+16. Ubuntu data-plane and management interfaces should not gate
+    `network-online.target`; marking the isolated lab interfaces optional
+    prevents unnecessary `systemd-networkd-wait-online` boot delays.
+17. Moving management away from the physical LAN also removes the Ubuntu VMs'
+    former DHCP-provided default route. Management connectivity and Internet
+    egress are therefore separate concerns in the current lab architecture.
 
 ## Implications for the Platform Model
 
