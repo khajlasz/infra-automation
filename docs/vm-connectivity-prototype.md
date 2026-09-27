@@ -1,5 +1,14 @@
 # UTM VM Connectivity Prototype
 
+> **Historical prototype**
+>
+> This document records the original UTM, Docker and RouterOS connectivity
+> experiment and intentionally preserves the configuration that was tested at
+> that stage. It is not the source of truth for the current lab topology.
+>
+> See `docs/local-lab.md` for the current management network, VM inventory,
+> UTM requirements and Kubernetes underlay.
+
 ## Status
 
 **Completed and verified:** 2026-08-13
