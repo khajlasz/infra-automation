@@ -313,8 +313,14 @@ The observability Ubuntu VM hosts the supporting monitoring stack.
 
 The macOS workstation acts as the automation control plane.
 
-Lab construction and workstation configuration belong to the separate
-`dev-environment` project.
+The local reference lab is project-specific infrastructure and is documented
+and evolved in this repository. UTM VM and virtual-network creation remain
+bootstrap prerequisites rather than responsibilities of the Platform Model or
+its generators. Generic developer-workstation configuration remains outside
+this project.
+
+The current lab topology, management addressing, UTM requirements and
+Kubernetes underlay are documented in `docs/local-lab.md`.
 
 ------------------------------------------------------------------------
 
