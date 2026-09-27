@@ -63,6 +63,33 @@ The current local-lab realization maps:
 -   logical networks to Docker parent interfaces and IPAM ranges;
 -   logical networks to physical RouterOS interfaces.
 
+The **local reference lab** is a separate concern from both the Platform Model
+and a deployment realization. It is the concrete project-specific execution
+environment in which realizations are exercised: UTM virtual machines,
+management connectivity, named UTM Host Networks and other bootstrap
+infrastructure.
+
+```text
+Platform Model
+      +
+Deployment Realization
+      |
+      v
+Generated deployment artifacts
+      |
+      v
+Local Reference Lab
+```
+
+The lab may support more than one realization technology over time. Docker is
+the current application runtime; a Kubernetes runtime is being prepared on the
+same routed lab fabric. Lab-specific UTM settings and management addresses do
+not become Platform Model properties merely because a realization uses the
+lab.
+
+The current physical/virtual lab topology and operating prerequisites are
+documented in `docs/local-lab.md`.
+
 ------------------------------------------------------------------------
 
 ## 3. Design Principles
