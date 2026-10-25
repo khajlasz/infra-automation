@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: out-dialer-deployer
+  namespace: out-dialer
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: out-dialer-deployer
+  namespace: out-dialer
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
+
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
+
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: out-dialer-deployer
+  namespace: out-dialer
+subjects:
+- kind: ServiceAccount
+  name: out-dialer-deployer
+  namespace: out-dialer
+roleRef:
+  kind: Role
+  name: out-dialer-deployer
+  apiGroup: rbac.authorization.k8s.io
