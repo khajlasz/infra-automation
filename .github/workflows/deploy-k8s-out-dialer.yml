@@ -1,0 +1,47 @@
+name: Deploy Out-Dialer to UTM Kubernetes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "k8s/out-dialer/portal-deployment.yaml"
+      - "k8s/out-dialer/portal-service.yaml"
+      - ".github/workflows/deploy-out-dialer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: out-dialer-local-lab
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, macOS, ARM64, local-lab]
+    environment: local-lab
+    timeout-minutes: 10
+
+    env:
+      KUBECONFIG: /Users/github-runner/.kube/out-dialer-deployer.yaml
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Kubernetes identity
+        run: |
+          kubectl config current-context
+          kubectl auth can-i patch deployments -n out-dialer | grep -qx yes
+
+      - name: Deploy portal
+        run: |
+          kubectl apply -n out-dialer \
+            -f k8s/out-dialer/portal-deployment.yaml \
+            -f k8s/out-dialer/portal-service.yaml
+
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/portal \
+            -n out-dialer --timeout=120s
+          kubectl get deployment,service -n out-dialer
