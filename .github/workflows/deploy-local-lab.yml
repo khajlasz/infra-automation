@@ -43,9 +43,11 @@ jobs:
 
       - name: Create Python virtual environment
         run: |
-          python3 -m venv .venv
+          rm -rf .venv
+          /opt/homebrew/bin/python3 -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install -e ".[dev]"
+          .venv/bin/python --version
 
       - name: Validate Out-Dialer model
         run: .venv/bin/python src/cli.py validate models/out-dialer
