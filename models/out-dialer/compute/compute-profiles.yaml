@@ -1,14 +1,11 @@
-
+# Per-replica requirements: CPU cores and RAM in MiB (future requests, not limits).
 compute_profiles:
-
   small:
-    cpu: 2
-    ram: 4096
-
+    cpu: 0.25
+    ram: 256
   medium:
-    cpu: 4
-    ram: 8192
-
+    cpu: 0.5
+    ram: 512
   large:
-    cpu: 8
-    ram: 16384
+    cpu: 1
+    ram: 1024

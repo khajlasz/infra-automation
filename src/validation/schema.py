@@ -1,19 +1,32 @@
 """Validate model files against Yamale schemas."""
 
+import math
 from pathlib import Path
 
 import yamale
+from yamale.validators import DefaultValidators, Number
 
 from model.discovery import discover_yaml_files
 from observability import get_logger
 
+
+class PositiveNumber(Number):
+    """Yamale's inclusive minimum cannot express strictly positive CPU cores."""
+
+    tag = "positive_num"
+
+    def _is_valid(self, value):
+        return super()._is_valid(value) and math.isfinite(value) and value > 0
+
+
+VALIDATORS = dict(DefaultValidators, positive_num=PositiveNumber)
 
 logger = get_logger(__name__)
 
 
 def validate_schema(model_path: Path, schema_path: Path) -> None:
     """Validate one model file using its Yamale schema."""
-    schema = yamale.make_schema(str(schema_path))
+    schema = yamale.make_schema(str(schema_path), validators=VALIDATORS)
     data = yamale.make_data(str(model_path))
     yamale.validate(schema, data)
 
@@ -41,6 +54,6 @@ def validate_realization_schema(
     realization_path: Path,
     schema_path: Path,
 ) -> None:
-    schema = yamale.make_schema(str(schema_path))
+    schema = yamale.make_schema(str(schema_path), validators=VALIDATORS)
     data = yamale.make_data(str(realization_path))
     yamale.validate(schema, data)

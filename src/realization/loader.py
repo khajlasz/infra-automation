@@ -13,4 +13,5 @@ def load_realization(path: Path) -> Realization:
         name=data["name"],
         docker=data.get("docker", {}),
         routeros=data.get("routeros", {}),
+        kubernetes=data.get("kubernetes", {}),
     )

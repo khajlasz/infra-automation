@@ -1,6 +1,6 @@
 compute_profiles: map(include('compute_profile'))
 ---
 compute_profile:
-  cpu: int(min=1)
-  ram: int(min=1024)
+  cpu: positive_num() # CPU cores, per replica
+  ram: int(min=1) # MiB, per replica
   description: str(required=False)

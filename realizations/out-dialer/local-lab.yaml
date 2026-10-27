@@ -39,3 +39,32 @@ routeros:
       physicalInterface: ether3
     observability:
       physicalInterface: ether4
+
+
+kubernetes:
+  namespace: out-dialer
+  workloads:
+    portal:
+      replicas: 2
+      imagePullPolicy: Never
+      endpoints:
+        http:
+          application: Portal
+          endpoint: http
+      service:
+        type: ClusterIP
+      probes:
+        readiness:
+          path: /health
+          port: http
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        liveness:
+          path: /health
+          port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+  observability:
+    metrics:
+      externalInterface: metrics
+      discovery: prometheus-annotations

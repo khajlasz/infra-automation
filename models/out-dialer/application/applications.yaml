@@ -16,13 +16,14 @@ applications:
     description: User-facing REST API for campaign management.
 
     endpoints:
-      https:
-        protocol: HTTPS
+      http:
+        protocol: HTTP
         port: 8443
 
       metrics:
         protocol: HTTP
         port: 9090
+        path: /metrics
   
   CampaignManager:
     description: Business logic and campaign lifecycle management.
@@ -35,6 +36,7 @@ applications:
       metrics:
         protocol: HTTP
         port: 9090
+        path: /metrics
   
   CallSimulator:
     description: Simulates outbound voice campaign execution.
@@ -47,6 +49,7 @@ applications:
       metrics:
         protocol: HTTP
         port: 9090
+        path: /metrics
 
   PostgreSQL:
     description: Persistent campaign database.

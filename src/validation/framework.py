@@ -57,7 +57,10 @@ def validate_realization_references(model, realization) -> None:
     realization_rules = [
         _validate_ref_008,
         _validate_ref_009,
-]
+        _validate_ref_010,
+        _validate_ref_011,
+        _validate_ref_012,
+    ]
 
     for rule in realization_rules:
         rule(model, realization)
@@ -364,3 +367,138 @@ def _validate_ref_009(model, realization) -> None:
                 )
 
             placements[node_name] = host_name
+
+
+def _validate_ref_010(model, realization) -> None:
+    """Kubernetes workload keys directly reference existing compute nodes."""
+    logger.info("Running REF-010 validation")
+    for name in realization.kubernetes.get("workloads", {}):
+        if name not in model.compute.nodes:
+            raise ModelError(
+                f"REF-010: Kubernetes workload '{name}' references unknown compute node '{name}'"
+            )
+
+
+def _kubernetes_applications(model, name):
+    """Resolve the deployment shared by endpoint and metrics validation."""
+    deployment_name = model.compute.nodes[name].get("deployment")
+    deployment = model.application.deployments.get(deployment_name)
+    if deployment is None:
+        raise ModelError(
+            f"REF-011: Kubernetes workload '{name}' references unknown deployment '{deployment_name}'"
+        )
+    return {ref["application"] for ref in deployment.get("applications", [])}
+
+
+def _validate_ref_011(model, realization) -> None:
+    """Selected endpoints belong to installed applications; probes use selected HTTP ports."""
+    logger.info("Running REF-011 validation")
+    applications = model.application.applications
+    for name, workload in realization.kubernetes.get("workloads", {}).items():
+        installed = _kubernetes_applications(model, name)
+        selected = workload.get("endpoints", {})
+        identities = set()
+        ports = {}
+        for port_name, binding in selected.items():
+            application = binding.get("application")
+            endpoint_name = binding.get("endpoint")
+            if application not in applications or application not in installed:
+                raise ModelError(
+                    f"REF-011: Kubernetes workload '{name}' selects unknown or uninstalled application '{application}'"
+                )
+            endpoint = applications[application].get("endpoints", {}).get(endpoint_name)
+            if endpoint is None:
+                raise ModelError(
+                    f"REF-011: Kubernetes workload '{name}' selects unknown endpoint '{endpoint_name}' on application '{application}'"
+                )
+            identity = (application, endpoint_name)
+            if identity in identities:
+                raise ModelError(
+                    f"REF-011: Kubernetes workload '{name}' selects duplicate endpoint '{application}.{endpoint_name}'"
+                )
+            identities.add(identity)
+            port = endpoint["port"]
+            if port in ports:
+                first_application, first_endpoint = ports[port]
+                raise ModelError(
+                    f"REF-011: Kubernetes workload '{name}' has conflicting container port {port} "
+                    f"for endpoints '{first_application}.{first_endpoint}' and '{application}.{endpoint_name}'"
+                )
+            ports[port] = identity
+            if endpoint.get("protocol") not in {"HTTP", "HTTPS", "TCP", "UDP"}:
+                raise ModelError(
+                    f"REF-011: Kubernetes workload '{name}' selects unsupported protocol on port '{port_name}'"
+                )
+        for probe_name, probe in workload.get("probes", {}).items():
+            port_name = probe.get("port")
+            binding = selected.get(port_name)
+            if binding is None:
+                raise ModelError(
+                    f"REF-011: Kubernetes workload '{name}' {probe_name} probe references unknown selected port '{port_name}'"
+                )
+            endpoint = applications[binding["application"]]["endpoints"][binding["endpoint"]]
+            if endpoint["protocol"] not in {"HTTP", "HTTPS"}:
+                raise ModelError(
+                    f"REF-011: Kubernetes workload '{name}' {probe_name} probe requires an HTTP/HTTPS endpoint"
+                )
+
+
+def _validate_ref_012(model, realization) -> None:
+    """Validate all metrics targets, allowing zero or one match per workload."""
+    logger.info("Running REF-012 validation")
+    metrics = realization.kubernetes.get("observability", {}).get("metrics")
+    if metrics is None:
+        return
+    interface_name = metrics.get("externalInterface")
+    interface = model.platform.data.get("external_interfaces", {}).get(interface_name)
+    if interface is None:
+        raise ModelError(
+            f"REF-012: Kubernetes metrics references unknown external interface '{interface_name}'"
+        )
+    if interface.get("sourceNetwork") not in model.network.networks:
+        raise ModelError(
+            f"REF-012: Kubernetes metrics external interface '{interface_name}' references an unknown source network"
+        )
+    interface_targets = interface.get("targets")
+    if not isinstance(interface_targets, list):
+        raise ModelError(
+            f"REF-012: Kubernetes metrics external interface '{interface_name}' requires a targets list"
+        )
+    # Validate before filtering so targets for other workloads cannot hide bad references.
+    for target in interface_targets:
+        if not isinstance(target, dict):
+            raise ModelError(
+                f"REF-012: Kubernetes metrics external interface '{interface_name}' has a malformed target"
+            )
+        application_name = target.get("application")
+        endpoint_name = target.get("endpoint")
+        application = model.application.applications.get(application_name)
+        if application is None:
+            raise ModelError(
+                f"REF-012: Kubernetes metrics external interface '{interface_name}' references unknown application '{application_name}'"
+            )
+        endpoint = application.get("endpoints", {}).get(endpoint_name, {})
+        path = endpoint.get("path")
+        if (endpoint_name != "metrics" or endpoint.get("protocol") != "HTTP"
+                or not isinstance(path, str) or not path.startswith("/")):
+            raise ModelError(
+                f"REF-012: Kubernetes metrics target '{application_name}.{endpoint_name}' in external interface "
+                f"'{interface_name}' requires a valid HTTP metrics endpoint with an explicit path"
+            )
+        if target.get("network") not in model.network.networks:
+            raise ModelError(
+                f"REF-012: Kubernetes metrics target '{application_name}.{endpoint_name}' in external interface "
+                f"'{interface_name}' references an unknown network"
+            )
+    for name in realization.kubernetes.get("workloads", {}):
+        installed = _kubernetes_applications(model, name)
+        targets = [target for target in interface_targets
+                   if target["application"] in installed]
+        if len(targets) > 1:
+            identities = ", ".join(
+                f"{target['application']}.{target['endpoint']}" for target in targets
+            )
+            raise ModelError(
+                f"REF-012: Kubernetes workload '{name}' has ambiguous metrics targets in external "
+                f"interface '{interface_name}': {identities} (found {len(targets)})"
+            )

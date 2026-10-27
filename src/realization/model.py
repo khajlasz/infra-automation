@@ -9,3 +9,4 @@ class Realization:
     name: str
     docker: dict[str, Any] = field(default_factory=dict)
     routeros: dict[str, Any] = field(default_factory=dict)
+    kubernetes: dict[str, Any] = field(default_factory=dict)

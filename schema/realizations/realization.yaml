@@ -1,6 +1,7 @@
 name: str()
 docker: include('docker', required=False)
 routeros: include('routeros', required=False)
+kubernetes: include('kubernetes', required=False)
 
 ---
 docker:
@@ -29,3 +30,40 @@ routeros:
 ---
 routeros_interface:
   physicalInterface: str()
+
+---
+kubernetes:
+  namespace: str(min=1)
+  workloads: map(include('kubernetes_workload'), min=1)
+  observability: include('kubernetes_observability', required=False)
+
+kubernetes_workload:
+  replicas: int(min=1)
+  imagePullPolicy: enum('Always', 'IfNotPresent', 'Never')
+  endpoints: map(include('selected_endpoint'), min=1)
+  service: include('kubernetes_service')
+  probes: include('kubernetes_probes', required=False)
+
+selected_endpoint:
+  application: str(min=1)
+  endpoint: str(min=1)
+
+kubernetes_service:
+  type: enum('ClusterIP')
+
+kubernetes_probes:
+  readiness: include('http_probe', required=False)
+  liveness: include('http_probe', required=False)
+
+http_probe:
+  path: str(matches='^/')
+  port: str(min=1)
+  initialDelaySeconds: int(min=0)
+  periodSeconds: int(min=1)
+
+kubernetes_observability:
+  metrics: include('kubernetes_metrics')
+
+kubernetes_metrics:
+  externalInterface: str(min=1)
+  discovery: enum('prometheus-annotations')

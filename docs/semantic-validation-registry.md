@@ -25,7 +25,7 @@ by individual YAML schemas alone.
 Model rules REF-001 through REF-007 operate on the assembled Platform
 Model.
 
-Realization rules REF-008 and REF-009 validate references between a
+Realization rules REF-008 through REF-012 validate references between a
 loaded Platform Model and a deployment realization.
 
 ------------------------------------------------------------------------
@@ -62,6 +62,9 @@ REF-006  External interface references an existing source network Implemented
 REF-007  External target references an existing network           Implemented
 REF-008  Docker host references existing compute nodes            Implemented
 REF-009  Compute node is assigned to at most one Docker host      Implemented
+REF-010  Kubernetes workload key references a compute node       Implemented
+REF-011  Kubernetes selected endpoints and probes resolve        Implemented
+REF-012  Kubernetes metrics binding resolves unambiguously       Implemented
 ```
 
 ------------------------------------------------------------------------
@@ -345,3 +348,52 @@ REF-009: Compute node '{node}' is assigned to multiple Docker hosts: '{first_hos
 
 **Severity:** ERROR\
 **Status:** Implemented
+
+
+## REF-010 --- Kubernetes workload keys reference compute nodes
+
+**Source:** `realization.kubernetes.workloads` keys.
+**Target:** `model.compute.nodes` IDs.
+
+Each workload key SHALL identify an existing compute node. There is no
+separate `node` field. Unknown keys raise `ModelError` with `REF-010`.
+
+**Severity:** ERROR; **Status:** Implemented.
+
+## REF-011 --- Kubernetes endpoint and probe references resolve
+
+**Source:** Each workload's `endpoints` and `probes`.
+**Target:** Node → deployment → installed applications → application endpoints.
+
+The node's deployment SHALL exist. Each selected application SHALL exist and
+belong to that deployment; each selected endpoint SHALL exist under that
+application. Duplicate endpoint identities and protocols outside HTTP, HTTPS,
+TCP, UDP fail. Distinct selected endpoints SHALL resolve to unique numeric
+container ports within each workload, regardless of protocol. Port conflicts
+identify the workload ID, numeric port and both endpoint identities. Probe ports SHALL reference a selected endpoint using HTTP or
+HTTPS. Failures raise `ModelError` with `REF-011` and workload context.
+
+**Severity:** ERROR; **Status:** Implemented.
+
+## REF-012 --- Kubernetes metrics bindings resolve unambiguously
+
+**Source:** `kubernetes.observability.metrics.externalInterface`.
+**Target:** `model.platform.external_interfaces` (initially `metrics`).
+
+When metrics discovery is configured, the selected external interface SHALL
+exist with a valid source-network reference and a targets list. Every target
+SHALL resolve to an existing application and `metrics` endpoint using HTTP and
+an explicit path beginning with `/`, and reference an existing target network.
+Validate all targets before filtering, including targets for applications not
+installed by any selected workload. Invalid references or required metadata
+raise `ModelError` with `REF-012`.
+
+For each selected workload, zero matching targets is valid; the future generator
+SHALL omit Prometheus scrape annotations and metrics ports for that workload.
+Exactly one target matching an application installed by the node's deployment
+is valid. Multiple matching targets raise `ModelError` with `REF-012`, the
+workload ID and ambiguous target identities. Targets for other applications
+are validated but are not selected.
+No Kubernetes connectivity is inferred from source or target networks.
+
+**Severity:** ERROR; **Status:** Implemented.

@@ -142,7 +142,7 @@ def test_firewall_terminal_deny_follows_distinct_external_rules():
     model.platform.external_interfaces["portal"] = {
         "sourceNetwork": "observability",
         "targets": [
-            {"application": "Portal", "endpoint": "https", "network": "internal"}
+            {"application": "Portal", "endpoint": "http", "network": "internal"}
         ],
     }
 

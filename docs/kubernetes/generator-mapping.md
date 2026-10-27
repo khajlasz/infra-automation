@@ -35,7 +35,7 @@ Do not derive Kubernetes networking from `compute.nodes.*.interfaces` or `extern
 
 The currently running Portal container (`docker/portal/app.py`) listens on **HTTP 8443** and exposes Prometheus metrics at **HTTP 9090** (path `/metrics`). `docker/portal/Dockerfile` does not configure TLS. The existing manually deployed Kubernetes manifests expose those two ports, use `imagePullPolicy: Never`, and configure `/health` HTTP readiness/liveness probes.
 
-The current application model incorrectly names `Portal.endpoints.https` with protocol `HTTPS`, even though the application serves HTTP. Rename only this Portal endpoint key to `http`, change its protocol to `HTTP`, and retain port **8443**. Do **not** change the Flask server or Kubernetes bootstrap manifests. Future external HTTPS will be terminated by an Ingress/Gateway with HTTP forwarded to the Service on 8443. The separately modeled `Authentication.https` endpoint is not part of this correction.
+Milestone 1 corrects the former `Portal.endpoints.https` / `HTTPS` metadata to `Portal.endpoints.http` / `HTTP`, retaining port **8443** because the application serves HTTP. Do **not** change the Flask server or Kubernetes bootstrap manifests. Future external HTTPS will be terminated by an Ingress/Gateway with HTTP forwarded to the Service on 8443. The separately modeled `Authentication.https` endpoint is not part of this correction.
 
 The existing `portal` deployment references both `Portal` and `Authentication`. The Kubernetes realization must explicitly select `Portal.http` for the main port. It must not implicitly expose every endpoint of every application listed under a deployment (in particular, do not expose `Authentication.https:8444`).
 
@@ -55,9 +55,9 @@ Initial Out-Dialer lab profiles (to be validated against real usage later):
 
 The UTM lab has two workers, each with allocatable **2 CPUs** and **3,360,120 KiB** of RAM (~3,281 MiB). Existing system workloads and node-level placement still affect actual scheduling. Requests multiply by replica count; verify cluster headroom before deploying higher replicas.
 
-**Generator mapping:** `containers[].resources.requests.cpu` and `.memory` derive from the selected profile. Do not emit `resources.limits` in v1. A future realization may optionally set limits without redefining the platform's required resources. The compute-profile Yamale schema currently requires integer CPU >=1 and memory >=1024; revise it to permit positive fractional CPU and smaller positive memory requests.
+**Generator mapping:** `containers[].resources.requests.cpu` and `.memory` derive from the selected profile. Do not emit `resources.limits` in v1. A future realization may optionally set limits without redefining the platform's required resources. The compute-profile Yamale schema uses the framework-registered `positive_num` validator (Yamale has only inclusive numeric minima) and permits positive finite fractional CPU cores and positive integer MiB. Existing integer profiles remain valid. Docker Compose and RouterOS do not consume these resource values.
 
-## 4. Proposed Kubernetes realization section
+## 4. Kubernetes realization section
 
 Append to the **existing** `realizations/out-dialer/local-lab.yaml`, retaining the existing `name`, `docker` and `routeros` sections unchanged:
 
@@ -67,7 +67,6 @@ kubernetes:
 
   workloads:
     portal:
-      node: portal
       replicas: 2
       imagePullPolicy: Never
 
@@ -98,7 +97,7 @@ kubernetes:
       discovery: prometheus-annotations
 ```
 
-`workloads.portal` is the Kubernetes object name; `node: portal` binds it to the existing Platform Model node. The workload's `node` resolves `deployment`, `product` (image) and `computeProfile` (requests). The `endpoints` binding selects which ordinary application endpoints are exported. Health probe `port` references that named selected port; it is not an arbitrary numeric literal.
+Each key under `kubernetes.workloads` directly references an existing `compute.nodes` ID and is the Kubernetes object name. There is no separate `node` field. The referenced compute node resolves `deployment`, `product` (image) and `computeProfile` (requests). The `endpoints` binding selects which ordinary application endpoints are exported. Distinct selected endpoints must resolve to distinct numeric container ports within each workload, regardless of protocol. Health probe `port` references that named selected port; it is not an arbitrary numeric literal.
 
 `observability.metrics.externalInterface` selects the **existing** `platform.external_interfaces.metrics` definition. Metrics endpoint identities and ports are not redefined in the realization. `discovery` enables the optional Prometheus-style Service annotation convention. This configures discovery metadata only, not Prometheus deployment, scrape configuration, firewall/routing, or ServiceMonitor.
 
@@ -129,7 +128,7 @@ Portal:
 |---|---|---|
 | Deployment/Service `metadata.name` | `kubernetes.workloads.<name>` | Stable workload name (`portal`) |
 | `metadata.namespace` | `kubernetes.namespace` | Copy (`out-dialer`) |
-| Labels: `app`, `app.kubernetes.io/part-of` | Workload name, `platform.platform.id` | `portal`, `out-dialer` |
+| Labels: `app`, `app.kubernetes.io/part-of` | Workload key (compute-node ID), `platform.platform.id` | `portal`, `out-dialer` |
 | Deployment `spec.replicas` | `workloads.portal.replicas` | Copy; current prototype `2` |
 | `spec.selector.matchLabels`, Pod labels | Workload name | Consistent `app: portal` |
 | Container `name` | Workload name | `portal` |
@@ -150,13 +149,13 @@ Protocol mapping: application-level `HTTP`/`HTTPS` implies transport `TCP` for K
 
 ### Metrics selection
 
-For a workload, resolve its node to its deployment and the deployment's application references. Inspect `platform.external_interfaces[externalInterface].targets`; a matching metrics target must reference an application installed by that deployment and a valid `metrics` endpoint under that application. For Portal, the authoritative target is `Portal.metrics`; it resolves to TCP port 9090 and HTTP path `/metrics`.
+For a workload, resolve its key directly to the compute node and then its deployment and the deployment's application references. Inspect `platform.external_interfaces[externalInterface].targets`; a matching metrics target must reference an application installed by that deployment and a valid `metrics` endpoint under that application. For Portal, the authoritative target is `Portal.metrics`; it resolves to TCP port 9090 and HTTP path `/metrics`.
 
-Do not use the entire `external_interfaces.metrics.targets` list to open ports on every workload. Do not materialize targets of other applications (CampaignManager or CallSimulator) in the Portal Service. Preserve separation of application endpoint data from exposure policy. Fail validation for invalid or ambiguous mappings instead of silently selecting one.
+Do not use the entire `external_interfaces.metrics.targets` list to open ports on every workload. Do not materialize targets of other applications (CampaignManager or CallSimulator) in the Portal Service. Preserve separation of application endpoint data from exposure policy. Validate every target in the selected external metrics interface before workload filtering, including application/endpoint references, HTTP metrics metadata and explicit path, and required source/target network references. Invalid targets fail even when their applications are not installed by the current workload. Zero matching targets is valid: omit metrics ports and Prometheus scrape annotations for that workload. Exactly one matching target is valid. Multiple matching targets are ambiguous and fail with the workload ID and target identities.
 
 ### Prometheus annotations
 
-When discovery is `prometheus-annotations`, add the following **Service** annotations:
+When discovery is `prometheus-annotations` and the workload has one matching metrics target, add the following **Service** annotations:
 
 ```yaml
 metadata:
@@ -217,3 +216,7 @@ Follow the existing generator API shape (`generate(model, realization)` plus `se
 - No container build/push/image registry pipeline.
 - No resource limits or HPA in v1; keep `replicas` realization-owned.
 - No changes to Docker Compose or RouterOS output other than consequences of intentionally correcting Portal endpoint metadata; regression tests must continue to pass.
+
+## 10. Milestone 1 validation
+
+REF-010 validates workload keys against compute-node IDs. REF-011 resolves each node deployment and selected application/endpoint, requires selected applications to belong to that deployment, requires unique resolved numeric container ports, validates supported protocols (HTTP, HTTPS, TCP, UDP), and requires probe ports to select HTTP/HTTPS endpoints. REF-012 validates the external metrics interface and all of its targets before filtering by installed application. Each workload may have zero targets (omit scrape annotations) or one valid HTTP `metrics` target with an explicit path. Multiple matching targets fail with their identities and workload ID; invalid references or metadata always fail. These checks do not infer Kubernetes networking from model interfaces or source networks. Kubernetes remains optional; generation and CLI support are Milestone 2.
