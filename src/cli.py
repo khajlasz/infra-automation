@@ -10,6 +10,8 @@ from observability.logger import get_logger
 
 from generators.terraform_routeros import TerraformRouterOSGenerator
 from realization import load_realization
+from validation.schema import validate_realization_schema
+from validation.framework import validate_realization_references
 
 logger = get_logger(__name__)
 
@@ -89,6 +91,8 @@ def main() -> int:
         help="Path to the model directory to validate.",
     )
     
+    validate_command.add_argument("--realization", type=Path)
+
     # Add generate docker-compose command
     generate_command = commands.add_parser(
         "generate",
@@ -146,6 +150,13 @@ def main() -> int:
         schema_directory = Path(__file__).parents[1] / "schema"
         validate_model_schema(arguments.model_directory, schema_directory)
         validate_model(arguments.model_directory)
+        if arguments.realization is not None:
+            validate_realization_schema(
+                arguments.realization, schema_directory / "realizations/realization.yaml"
+            )
+            validate_realization_references(
+                Loader().load(arguments.model_directory), load_realization(arguments.realization)
+            )
         
     elif arguments.command == "generate":
         if arguments.generate_command == "docker-compose":

@@ -24,9 +24,9 @@ def inputs():
 def test_model_and_realization_contract(inputs):
     model, realization = inputs
     assert model.compute.compute_profiles == {
-        "small": {"cpu": 0.25, "ram": 256},
-        "medium": {"cpu": 0.5, "ram": 512},
-        "large": {"cpu": 1, "ram": 1024},
+        "small": {"cpu": 1, "ram": 1024},
+        "medium": {"cpu": 2, "ram": 2048},
+        "large": {"cpu": 4, "ram": 4096},
     }
     apps = model.application.applications
     assert apps["Portal"]["endpoints"]["http"] == {"protocol": "HTTP", "port": 8443}
@@ -37,6 +37,7 @@ def test_model_and_realization_contract(inputs):
     assert realization.kubernetes == yaml.safe_load(REALIZATION.read_text())["kubernetes"]
     assert realization.kubernetes["namespace"] == "out-dialer"
     assert realization.kubernetes["workloads"] == {"portal": {
+        "application": "Portal", "deployment": "portal", "computeProfile": "small",
         "replicas": 2,
         "imagePullPolicy": "Never",
         "endpoints": {"http": {"application": "Portal", "endpoint": "http"}},
@@ -66,7 +67,7 @@ def test_legacy_realization_remains_optional(tmp_path, inputs):
 
 
 @pytest.mark.parametrize("case, message", [
-    ("node", "REF-010:.*unknown compute node 'missing'"),
+    ("profile", "REF-010:.*unknown compute profile 'missing'"),
     ("deployment", "REF-011:.*unknown deployment"),
     ("application", "REF-011:.*unknown or uninstalled application"),
     ("uninstalled", "REF-011:.*unknown or uninstalled application"),
@@ -88,10 +89,10 @@ def test_invalid_references_rejected(inputs, case, message):
     binding = workload["endpoints"]["http"]
     targets = model.platform.external_interfaces["metrics"]["targets"]
     portal = model.application.applications["Portal"]["endpoints"]
-    if case == "node":
-        kube["workloads"]["missing"] = kube["workloads"].pop("portal")
+    if case == "profile":
+        workload["computeProfile"] = "missing"
     elif case == "deployment":
-        model.compute.nodes["portal"]["deployment"] = "missing"
+        workload["deployment"] = "missing"
     elif case == "application":
         binding["application"] = "missing"
     elif case == "uninstalled":
@@ -174,14 +175,12 @@ def test_ref_012_allows_zero_or_one_matching_target(inputs, matching):
     validate_realization_references(model, realization)
 
 
-def test_ref_012_rejects_distinct_ambiguous_targets(inputs):
+def test_ref_012_ignores_other_deployment_applications(inputs):
     model, realization = inputs
     model.application.deployments["portal"]["applications"].append(
         {"application": "CampaignManager"})
-    with pytest.raises(ModelError, match=(
-        r"REF-012:.*workload 'portal'.*ambiguous metrics targets.*"
-        r"Portal.metrics, CampaignManager.metrics")):
-        validate_realization_references(model, realization)
+    # Only the selected Portal application belongs to this Kubernetes workload.
+    validate_realization_references(model, realization)
 
 
 @pytest.mark.parametrize("case", [
@@ -219,13 +218,14 @@ def test_ref_012_validates_metadata_before_workload_filtering(inputs, case):
 @pytest.mark.parametrize("port", [8443, 8444])
 def test_ref_011_selected_numeric_ports_must_be_unique(inputs, port):
     model, realization = inputs
-    model.application.applications["Authentication"]["endpoints"]["https"]["port"] = port
+    model.application.applications["Portal"]["endpoints"]["secondary"] = {
+        "protocol": "HTTPS", "port": port}
     realization.kubernetes["workloads"]["portal"]["endpoints"]["secondary"] = {
-        "application": "Authentication", "endpoint": "https"}
+        "application": "Portal", "endpoint": "secondary"}
     if port == 8443:
         with pytest.raises(ModelError, match=(
             r"REF-011:.*workload 'portal'.*container port 8443.*"
-            r"Portal.http.*Authentication.https")):
+            r"Portal.http.*Portal.secondary")):
             validate_realization_references(model, realization)
     else:
         validate_realization_references(model, realization)

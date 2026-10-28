@@ -41,21 +41,30 @@ The existing `portal` deployment references both `Portal` and `Authentication`. 
 
 ## 3. Compute profile resource policy
 
-`compute.nodes.<node>.computeProfile` references `compute.compute_profiles.<profile>`.
+Compute profiles are shared logical **capacity budgets**, including operating-system and supporting-service overhead. CPU is in cores; RAM is in MiB. A profile is neither a Kubernetes worker specification nor a per-replica request. Existing compute nodes retain their profile relationships for other realizations.
 
-**Unit contract:** `cpu` is a positive number of **CPU cores**; `ram` is a positive integer of **MiB**. These are workload **per-replica resource requirements**, not node capacities or entire-deployment totals.
+Kubernetes workloads bind `computeProfile` directly in the realization. Sizing bypasses `compute.nodes`: application scheduling and replicas are independent of logical compute-node placement. No specific physical node's CPU or RAM is reserved by this binding.
 
-Initial Out-Dialer lab profiles (to be validated against real usage later):
+The fixed v1 lab convention allocates 25% to OS/supporting services, 25% to headroom, and 50% to the application:
 
-| Profile | `cpu` (cores) | `ram` (MiB) | Kubernetes requests |
-|---|---:|---:|---|
-| small | 0.25 | 256 | `cpu: 250m`, `memory: 256Mi` |
-| medium | 0.5 | 512 | `cpu: 500m`, `memory: 512Mi` |
-| large | 1 | 1024 | `cpu: "1"`, `memory: 1024Mi` |
+```text
+application_budget = profile_capacity × 0.50
+request_per_replica = application_budget / replicas
+cpu_millicores = floor(cpu_cores × 1000 / (2 × replicas))
+memory_MiB = floor(ram_MiB / (2 × replicas))
+```
 
-The UTM lab has two workers, each with allocatable **2 CPUs** and **3,360,120 KiB** of RAM (~3,281 MiB). Existing system workloads and node-level placement still affect actual scheduling. Requests multiply by replica count; verify cluster headroom before deploying higher replicas.
+| Profile | Capacity | 1 replica | 2 replicas |
+|---|---|---|---|
+| small | 1 CPU / 1024 MiB | 500m / 512 MiB | 250m / 256 MiB |
+| medium | 2 CPU / 2048 MiB | 1000m / 1024 MiB | 500m / 512 MiB |
+| large | 4 CPU / 4096 MiB | 2000m / 2048 MiB | 1000m / 1024 MiB |
 
-**Generator mapping:** `containers[].resources.requests.cpu` and `.memory` derive from the selected profile. Do not emit `resources.limits` in v1. A future realization may optionally set limits without redefining the platform's required resources. The compute-profile Yamale schema uses the framework-registered `positive_num` validator (Yamale has only inclusive numeric minima) and permits positive finite fractional CPU cores and positive integer MiB. Existing integer profiles remain valid. Docker Compose and RouterOS do not consume these resource values.
+Use exact rational arithmetic from decimal model CPU values; round down independently to whole millicores and MiB. Emit strings such as `1000m` and `1024Mi`. For small with three replicas, each request is `166m` / `170Mi`. Reject nonpositive/noninteger replica counts (including booleans), missing or unknown profile bindings, nonpositive/nonfinite CPU, nonpositive/noninteger RAM, or requests rounding below `1m` / `1Mi`.
+
+The logical total application budget stays fixed as replicas change. Flooring can leave a small unused remainder (less than one unit per replica); the aggregate emitted requests never exceed 50% of capacity. Do not round up or allocate unequal requests to replicas.
+
+Only `containers[].resources.requests` is populated; no automatic CPU or memory limits. These percentages are a lab modeling convention, not actual Kubernetes node reservations, kubelet settings or scheduler guarantees. Verify usage and cluster headroom operationally. The policy is fixed outside the Platform Model; no second profile registry is introduced. Docker Compose and RouterOS do not consume profile resource values.
 
 ## 4. Kubernetes realization section
 
@@ -67,6 +76,9 @@ kubernetes:
 
   workloads:
     portal:
+      application: Portal
+      deployment: portal
+      computeProfile: small
       replicas: 2
       imagePullPolicy: Never
 
@@ -97,7 +109,7 @@ kubernetes:
       discovery: prometheus-annotations
 ```
 
-Each key under `kubernetes.workloads` directly references an existing `compute.nodes` ID and is the Kubernetes object name. There is no separate `node` field. The referenced compute node resolves `deployment`, `product` (image) and `computeProfile` (requests). The `endpoints` binding selects which ordinary application endpoints are exported. Distinct selected endpoints must resolve to distinct numeric container ports within each workload, regardless of protocol. Health probe `port` references that named selected port; it is not an arbitrary numeric literal.
+Each key under `kubernetes.workloads` is a stable Kubernetes workload name, independent of `compute.nodes`. There is no `node` field. `application` selects one application installed by the explicitly referenced `deployment`; the deployment supplies `product` (image). `computeProfile` directly references the shared capacity budget. Portal's deployment also lists Authentication, but that application is not selected or generated. The `endpoints` binding selects which ordinary application endpoints are exported. Distinct selected endpoints must resolve to distinct numeric container ports within each workload, regardless of protocol. Health probe `port` references that named selected port; it is not an arbitrary numeric literal.
 
 `observability.metrics.externalInterface` selects the **existing** `platform.external_interfaces.metrics` definition. Metrics endpoint identities and ports are not redefined in the realization. `discovery` enables the optional Prometheus-style Service annotation convention. This configures discovery metadata only, not Prometheus deployment, scrape configuration, firewall/routing, or ServiceMonitor.
 
@@ -128,14 +140,14 @@ Portal:
 |---|---|---|
 | Deployment/Service `metadata.name` | `kubernetes.workloads.<name>` | Stable workload name (`portal`) |
 | `metadata.namespace` | `kubernetes.namespace` | Copy (`out-dialer`) |
-| Labels: `app`, `app.kubernetes.io/part-of` | Workload key (compute-node ID), `platform.platform.id` | `portal`, `out-dialer` |
+| Labels: `app`, `app.kubernetes.io/part-of` | Workload name, `platform.platform.id` | `portal`, `out-dialer` |
 | Deployment `spec.replicas` | `workloads.portal.replicas` | Copy; current prototype `2` |
 | `spec.selector.matchLabels`, Pod labels | Workload name | Consistent `app: portal` |
 | Container `name` | Workload name | `portal` |
-| Container `image` | Node → deployment → `product` | Reuse image naming convention: `out-dialer/portal:0.1` |
+| Container `image` | Workload `deployment` → `product` | Reuse image naming convention: `out-dialer/portal:0.1` |
 | `imagePullPolicy` | Realization workload | `Never` for preloaded-image lab |
-| `resources.requests.cpu` | Node → compute profile `cpu` | Cores to Kubernetes CPU quantity (`0.25` → `250m`) |
-| `resources.requests.memory` | Node → compute profile `ram` | MiB to Kubernetes memory quantity (`256` → `256Mi`) |
+| `resources.requests.cpu` | Workload `computeProfile` → `cpu` | Floor 50% capacity / replicas to millicores |
+| `resources.requests.memory` | Workload `computeProfile` → `ram` | Floor 50% capacity / replicas to MiB |
 | Main `containerPort` | Realization selected application endpoint → model port | `http: 8443`, `protocol: TCP` |
 | Metrics `containerPort` | External metrics interface target → model endpoint | `metrics: 9090`, `protocol: TCP`; deduplicate |
 | HTTP readiness/liveness probes | Realization `probes` | `/health` on named port `http`; scheme HTTP for HTTP endpoint |
@@ -149,7 +161,7 @@ Protocol mapping: application-level `HTTP`/`HTTPS` implies transport `TCP` for K
 
 ### Metrics selection
 
-For a workload, resolve its key directly to the compute node and then its deployment and the deployment's application references. Inspect `platform.external_interfaces[externalInterface].targets`; a matching metrics target must reference an application installed by that deployment and a valid `metrics` endpoint under that application. For Portal, the authoritative target is `Portal.metrics`; it resolves to TCP port 9090 and HTTP path `/metrics`.
+For a workload, resolve its explicitly selected `application` and `deployment`, without traversing compute nodes. Inspect `platform.external_interfaces[externalInterface].targets`; a matching metrics target must reference the selected application and a valid `metrics` endpoint under that application. For Portal, the authoritative target is `Portal.metrics`; it resolves to TCP port 9090 and HTTP path `/metrics`.
 
 Do not use the entire `external_interfaces.metrics.targets` list to open ports on every workload. Do not materialize targets of other applications (CampaignManager or CallSimulator) in the Portal Service. Preserve separation of application endpoint data from exposure policy. Validate every target in the selected external metrics interface before workload filtering, including application/endpoint references, HTTP metrics metadata and explicit path, and required source/target network references. Invalid targets fail even when their applications are not installed by the current workload. Zero matching targets is valid: omit metrics ports and Prometheus scrape annotations for that workload. Exactly one matching target is valid. Multiple matching targets are ambiguous and fail with the workload ID and target identities.
 
@@ -184,7 +196,14 @@ Compare **semantic YAML structures**, not raw YAML text, against `k8s/out-dialer
 
 ## 8. CLI and incremental implementation
 
-Target public CLI interface for a later milestone:
+Validate the model, realization schema and semantic bindings through the public CLI:
+
+```bash
+.venv/bin/python src/cli.py validate models/out-dialer \
+  --realization realizations/out-dialer/local-lab.yaml
+```
+
+Capacity calculation is implemented by `realization.resources.resolve_kubernetes_requests`. A Kubernetes manifest generator is not yet implemented in this checkout. Target generation interface for a later milestone:
 
 ```bash
 .venv/bin/python src/cli.py generate kubernetes \
@@ -201,7 +220,7 @@ Follow the existing generator API shape (`generate(model, realization)` plus `se
 - Update compute profile values and CPU/RAM schema; document units.
 - Append Kubernetes realization section and schema validation.
 - Extend realization dataclass/loader to expose `.kubernetes` without disturbing Docker/RouterOS.
-- Add minimal semantic realization-reference checks for selected Kubernetes node, endpoint binding, and external metrics interface; keep the existing reference registry/docs in sync.
+- Add minimal semantic realization-reference checks for selected Kubernetes application/deployment, direct capacity-profile binding, and external metrics interface; keep the existing reference registry/docs in sync.
 - Add/adjust tests and document these mappings.
 
 **Milestone 2 — generator + CLI:** implement `src/generators/kubernetes.py`, `generate kubernetes`, output files, and comprehensive generator tests.
@@ -219,4 +238,6 @@ Follow the existing generator API shape (`generate(model, realization)` plus `se
 
 ## 10. Milestone 1 validation
 
-REF-010 validates workload keys against compute-node IDs. REF-011 resolves each node deployment and selected application/endpoint, requires selected applications to belong to that deployment, requires unique resolved numeric container ports, validates supported protocols (HTTP, HTTPS, TCP, UDP), and requires probe ports to select HTTP/HTTPS endpoints. REF-012 validates the external metrics interface and all of its targets before filtering by installed application. Each workload may have zero targets (omit scrape annotations) or one valid HTTP `metrics` target with an explicit path. Multiple matching targets fail with their identities and workload ID; invalid references or metadata always fail. These checks do not infer Kubernetes networking from model interfaces or source networks. Kubernetes remains optional; generation and CLI support are Milestone 2.
+REF-010 validates direct compute-profile bindings, positive capacities, replica counts and representable requests. REF-011 resolves the explicit deployment and selected application, requires endpoint selections to belong to that application, requires unique resolved numeric container ports, validates supported protocols (HTTP, HTTPS, TCP, UDP), and requires probe ports to select HTTP/HTTPS endpoints. REF-012 validates the external metrics interface and all targets before filtering by the selected application. Each workload may have zero targets (omit scrape annotations) or one valid HTTP `metrics` target with an explicit path. Multiple matches fail with target identities and workload ID; invalid references or metadata always fail. No Kubernetes networking is inferred from model interfaces or source networks. Kubernetes remains optional; manifest generation is deferred.
+
+Initial networking remains governed by ADR-010: CNI networking, ClusterIP Services, and no generated NetworkPolicies or logical-zone translation. These sizing changes do not alter that decision.

@@ -5,6 +5,7 @@ from pathlib import Path
 from model import ModelError
 from observability import get_logger
 from loader import Loader
+from realization.resources import resolve_kubernetes_requests
 
 logger = get_logger(__name__)
 
@@ -370,24 +371,36 @@ def _validate_ref_009(model, realization) -> None:
 
 
 def _validate_ref_010(model, realization) -> None:
-    """Kubernetes workload keys directly reference existing compute nodes."""
+    """Kubernetes workloads bind capacity profiles independently of compute nodes."""
     logger.info("Running REF-010 validation")
-    for name in realization.kubernetes.get("workloads", {}):
-        if name not in model.compute.nodes:
+    for name, workload in realization.kubernetes.get("workloads", {}).items():
+        profile_name = workload.get("computeProfile")
+        profile = model.compute.compute_profiles.get(profile_name)
+        if profile is None:
             raise ModelError(
-                f"REF-010: Kubernetes workload '{name}' references unknown compute node '{name}'"
+                f"REF-010: Kubernetes workload '{name}' references unknown compute profile '{profile_name}'"
             )
+        try:
+            resolve_kubernetes_requests(profile, workload.get("replicas"))
+        except ModelError as error:
+            raise ModelError(f"REF-010: Kubernetes workload '{name}': {error}") from error
 
 
-def _kubernetes_applications(model, name):
-    """Resolve the deployment shared by endpoint and metrics validation."""
-    deployment_name = model.compute.nodes[name].get("deployment")
+def _kubernetes_applications(model, name, workload):
+    """Resolve the explicitly selected application without compute-node placement."""
+    deployment_name = workload.get("deployment")
     deployment = model.application.deployments.get(deployment_name)
     if deployment is None:
         raise ModelError(
             f"REF-011: Kubernetes workload '{name}' references unknown deployment '{deployment_name}'"
         )
-    return {ref["application"] for ref in deployment.get("applications", [])}
+    application = workload.get("application")
+    installed = {ref["application"] for ref in deployment.get("applications", [])}
+    if application not in model.application.applications or application not in installed:
+        raise ModelError(
+            f"REF-011: Kubernetes workload '{name}' selects unknown or uninstalled application '{application}'"
+        )
+    return {application}
 
 
 def _validate_ref_011(model, realization) -> None:
@@ -395,7 +408,7 @@ def _validate_ref_011(model, realization) -> None:
     logger.info("Running REF-011 validation")
     applications = model.application.applications
     for name, workload in realization.kubernetes.get("workloads", {}).items():
-        installed = _kubernetes_applications(model, name)
+        installed = _kubernetes_applications(model, name, workload)
         selected = workload.get("endpoints", {})
         identities = set()
         ports = {}
@@ -490,8 +503,8 @@ def _validate_ref_012(model, realization) -> None:
                 f"REF-012: Kubernetes metrics target '{application_name}.{endpoint_name}' in external interface "
                 f"'{interface_name}' references an unknown network"
             )
-    for name in realization.kubernetes.get("workloads", {}):
-        installed = _kubernetes_applications(model, name)
+    for name, workload in realization.kubernetes.get("workloads", {}).items():
+        installed = _kubernetes_applications(model, name, workload)
         targets = [target for target in interface_targets
                    if target["application"] in installed]
         if len(targets) > 1:

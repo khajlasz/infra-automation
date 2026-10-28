@@ -45,6 +45,9 @@ kubernetes:
   namespace: out-dialer
   workloads:
     portal:
+      application: Portal
+      deployment: portal
+      computeProfile: small
       replicas: 2
       imagePullPolicy: Never
       endpoints:

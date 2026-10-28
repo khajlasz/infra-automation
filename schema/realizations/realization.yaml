@@ -38,6 +38,9 @@ kubernetes:
   observability: include('kubernetes_observability', required=False)
 
 kubernetes_workload:
+  application: str(min=1)
+  deployment: str(min=1)
+  computeProfile: str(min=1)
   replicas: int(min=1)
   imagePullPolicy: enum('Always', 'IfNotPresent', 'Never')
   endpoints: map(include('selected_endpoint'), min=1)

@@ -62,7 +62,7 @@ REF-006  External interface references an existing source network Implemented
 REF-007  External target references an existing network           Implemented
 REF-008  Docker host references existing compute nodes            Implemented
 REF-009  Compute node is assigned to at most one Docker host      Implemented
-REF-010  Kubernetes workload key references a compute node       Implemented
+REF-010  Kubernetes workload references a capacity profile       Implemented
 REF-011  Kubernetes selected endpoints and probes resolve        Implemented
 REF-012  Kubernetes metrics binding resolves unambiguously       Implemented
 ```
@@ -350,24 +350,28 @@ REF-009: Compute node '{node}' is assigned to multiple Docker hosts: '{first_hos
 **Status:** Implemented
 
 
-## REF-010 --- Kubernetes workload keys reference compute nodes
+## REF-010 --- Kubernetes workload capacity binding
 
-**Source:** `realization.kubernetes.workloads` keys.
-**Target:** `model.compute.nodes` IDs.
+**Source:** `realization.kubernetes.workloads[*].computeProfile` and `replicas`.
+**Target:** `model.compute.compute_profiles`.
 
-Each workload key SHALL identify an existing compute node. There is no
-separate `node` field. Unknown keys raise `ModelError` with `REF-010`.
+Each workload SHALL directly reference an existing shared capacity profile.
+Replica count SHALL be a positive integer (not boolean). CPU capacity SHALL be
+positive and finite; RAM capacity SHALL be a positive integer MiB. Half the
+capacity divided by replicas, floored to millicores/MiB, SHALL remain at least
+1m/1Mi. Failures raise `ModelError` with `REF-010` and workload context.
+Workload keys are object names; compute-node references are not required.
 
 **Severity:** ERROR; **Status:** Implemented.
 
 ## REF-011 --- Kubernetes endpoint and probe references resolve
 
 **Source:** Each workload's `endpoints` and `probes`.
-**Target:** Node → deployment → installed applications → application endpoints.
+**Target:** Explicit workload deployment → selected application → application endpoints.
 
-The node's deployment SHALL exist. Each selected application SHALL exist and
-belong to that deployment; each selected endpoint SHALL exist under that
-application. Duplicate endpoint identities and protocols outside HTTP, HTTPS,
+The workload's explicit deployment and application SHALL exist, and the
+application SHALL belong to that deployment. Every selected endpoint SHALL
+belong to that single application. Compute nodes are not traversed. Duplicate endpoint identities and protocols outside HTTP, HTTPS,
 TCP, UDP fail. Distinct selected endpoints SHALL resolve to unique numeric
 container ports within each workload, regardless of protocol. Port conflicts
 identify the workload ID, numeric port and both endpoint identities. Probe ports SHALL reference a selected endpoint using HTTP or
@@ -390,7 +394,7 @@ raise `ModelError` with `REF-012`.
 
 For each selected workload, zero matching targets is valid; the future generator
 SHALL omit Prometheus scrape annotations and metrics ports for that workload.
-Exactly one target matching an application installed by the node's deployment
+Exactly one target matching the workload's explicitly selected application
 is valid. Multiple matching targets raise `ModelError` with `REF-012`, the
 workload ID and ambiguous target identities. Targets for other applications
 are validated but are not selected.
