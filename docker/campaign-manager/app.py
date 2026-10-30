@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+import os
 import requests
 import uuid
 import threading
@@ -45,7 +46,7 @@ def simulate_async_execution(campaign_id, numbers, prompt_source):
 
     try:
         # Call the simulator - this is where the actual call processing happens
-        simulator_url = "http://call_simulator:8081/execute"
+        simulator_url = os.getenv("CALL_SIMULATOR_URL", "http://call_simulator:8081/execute")
 
         execute_response = requests.post(simulator_url, json={
             "campaign_id": campaign_id,

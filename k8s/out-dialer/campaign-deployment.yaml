@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campaign
+  namespace: out-dialer
+  labels:
+      app: campaign
+      app.kubernetes.io/part-of: out-dialer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: campaign
+  template:
+    metadata:
+      labels:
+        app: campaign
+    spec:
+      containers:
+        - name: campaign
+          image: out-dialer/campaign-manager:0.2
+          imagePullPolicy: Never
+          env:
+            - name: CALL_SIMULATOR_URL
+              value: "http://call-simulator:8081/execute"
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9090
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 1024Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
